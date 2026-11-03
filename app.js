@@ -8,6 +8,7 @@
     month: null, // selected month, shared by all overview pages; null = current month
     detailCar: null,
     filter: 'all',
+    place: 'all', // Data list: 'all' | 'home' | 'away'
     editing: null, // charge id being edited
     includeAway: true, // Bildetaljer: include charges made away from home
   };
@@ -293,10 +294,15 @@
     const { cars, charges } = state.data;
     const list = charges
       .filter((c) => state.filter === 'all' || c.car === state.filter)
+      .filter((c) => state.place === 'all' || (state.place === 'away') === !!c.nonHome)
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    const sum = list.reduce((s, c) => ({ kwh: s.kwh + c.kwh, price: s.price + c.price }), { kwh: 0, price: 0 });
+    const places = [['all', 'Alle ladninger'], ['home', 'Hjemme'], ['away', 'Væk hjemme']];
     $('#data').innerHTML = `
       <div class="head"><h1>Data</h1></div>
       <div class="seg"><button data-f="all" class="${state.filter === 'all' ? 'on' : ''}">Alle</button>${cars.map((c) => `<button data-f="${esc(c.id)}" class="${state.filter === c.id ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</div>
+      <div class="seg">${places.map(([k, label]) => `<button data-place="${k}" class="${state.place === k ? 'on' : ''}">${label}</button>`).join('')}</div>
+      ${list.length ? `<p class="summary">${list.length} ladninger · ${f1.format(sum.kwh)} kWh · ${f2.format(sum.price)} kr.${sum.kwh > 0 ? ` · ${f2.format(sum.price / sum.kwh)} kr./kWh` : ''}</p>` : ''}
       ${list.length
         ? list.map((c) => `<button class="item" data-id="${esc(c.id)}"><div class="l"><b>${esc(fmtDate(c.date))}</b><span>${esc(carName(c.car))}${c.nonHome ? '<em class="tag">Ude</em>' : ''}</span></div><div class="r">${f2.format(c.kwh)} kWh<span>${f2.format(c.price)} kr.</span><span>${f2.format(c.kwh > 0 ? c.price / c.kwh : 0)} kr./kWh</span></div></button>`).join('')
         : '<p class="empty">Ingen data endnu</p>'}
@@ -305,6 +311,8 @@
   $('#data').addEventListener('click', (e) => {
     const f = e.target.closest('[data-f]');
     if (f) { state.filter = f.dataset.f; return renderData(); }
+    const pl = e.target.closest('[data-place]');
+    if (pl) { state.place = pl.dataset.place; return renderData(); }
     const it = e.target.closest('[data-id]');
     if (it) openForm(it.dataset.id, null, 'data');
   });
@@ -344,7 +352,11 @@
     const cached = Api.getCache();
     if (cached) setData({ ok: true, ...cached });
     try {
-      setData(await Api.call('getAll'));
+      const fresh = await Api.call('getAll');
+      setData(fresh);
+      if (!Api.demo && fresh.charges.length && !('nonHome' in fresh.charges[0])) {
+        toast('Backend er ikke opdateret: udgiv en ny version i Apps Script');
+      }
     } catch (e) {
       if (e.code === 'AUTH') return logout();
       if (!cached) toast(e.message);
