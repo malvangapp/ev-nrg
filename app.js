@@ -299,7 +299,7 @@
       <div class="head"><h1>Data</h1></div>
       <div class="seg"><button data-f="all" class="${state.filter === 'all' ? 'on' : ''}">Alle</button>${cars.map((c) => `<button data-f="${esc(c.id)}" class="${state.filter === c.id ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</div>
       ${list.length
-        ? list.map((c) => `<button class="item" data-id="${esc(c.id)}"><div class="l"><b>${esc(fmtDate(c.date))}</b><span>${esc(carName(c.car))}${c.nonHome ? '<em class="tag">Ude</em>' : ''}</span></div><div class="r">${f2.format(c.kwh)} kWh<span>${f2.format(c.price)} kr.</span></div></button>`).join('')
+        ? list.map((c) => `<button class="item" data-id="${esc(c.id)}"><div class="l"><b>${esc(fmtDate(c.date))}</b><span>${esc(carName(c.car))}${c.nonHome ? '<em class="tag">Ude</em>' : ''}</span></div><div class="r">${f2.format(c.kwh)} kWh<span>${f2.format(c.price)} kr.</span><span>${f2.format(c.kwh > 0 ? c.price / c.kwh : 0)} kr./kWh</span></div></button>`).join('')
         : '<p class="empty">Ingen data endnu</p>'}
     `;
   }
