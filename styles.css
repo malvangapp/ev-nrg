@@ -54,8 +54,8 @@ button, input, select { font: inherit; color: inherit; }
 button.box { cursor: pointer; }
 .box .label { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 4px; }
 .box .label .chev { font-size: 11px; }
-.box .value { font-size: 27px; white-space: nowrap; font-weight: 650; letter-spacing: -0.5px; line-height: 1.05; overflow-wrap: anywhere; }
-.box .unit { font-size: 15px; font-weight: 500; color: var(--muted); }
+.box .value { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: clamp(28px, 10vw, 40px); white-space: nowrap; font-weight: 650; letter-spacing: -0.5px; line-height: 1.05; }
+.box .unit { display: block; margin-top: 4px; font-size: 16px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
 .dots { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; justify-content: center; gap: 7px; pointer-events: none; }
 .dots i { width: 7px; height: 7px; border-radius: 50%; background: #c6cbd1; }
 .dots i.on { background: var(--accent); }
