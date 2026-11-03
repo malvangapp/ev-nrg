@@ -5,7 +5,7 @@
     view: 'overview',
     returnView: 'overview',
     page: 0, // 0 = car 1, 1 = car 2, 2 = total
-    month: [null, null, null], // selected month per page; null = current month
+    month: null, // selected month, shared by all overview pages; null = current month
     detailCar: null,
     filter: 'all',
     editing: null, // charge id being edited
@@ -101,7 +101,7 @@
     pager.innerHTML = [0, 1, 2].map((i) => {
       const car = pageCar(i);
       const scope = car ? car.id : null;
-      const month = state.month[i] || currentMonth();
+      const month = state.month || currentMonth();
       const m = Calc.totals(charges, scope, month);
       const all = Calc.totals(charges, scope, null);
       const hero = car
@@ -136,13 +136,12 @@
     const add = e.target.closest('[data-add]');
     if (add) return openForm(null, +add.dataset.add < 2 ? state.data.cars[+add.dataset.add].id : null, 'overview');
     const mb = e.target.closest('[data-month]');
-    if (mb) openMonthPicker(+mb.dataset.month);
+    if (mb) openMonthPicker();
   });
 
-  function openMonthPicker(i) {
-    const car = pageCar(i);
-    const list = Calc.months(state.data.charges, car ? car.id : null);
-    const sel = state.month[i] || currentMonth();
+  function openMonthPicker() {
+    const list = Calc.months(state.data.charges, null); // months with data for any car
+    const sel = state.month || currentMonth();
     const sheet = openSheet(`<h2>Vælg måned</h2>${
       list.length
         ? list.map((m) => `<button class="month-opt ${m === sel ? 'on' : ''}" data-m="${m}"><span>${esc(fmtMonth(m))}</span>${m === sel ? '<span>✓</span>' : ''}</button>`).join('')
@@ -151,7 +150,7 @@
     sheet.onclick = (e) => {
       const b = e.target.closest('[data-m]');
       if (!b) return;
-      state.month[i] = b.dataset.m;
+      state.month = b.dataset.m;
       closeSheet();
       renderOverview();
     };
