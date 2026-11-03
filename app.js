@@ -297,7 +297,7 @@
       .filter((c) => state.place === 'all' || (state.place === 'away') === !!c.nonHome)
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     const sum = list.reduce((s, c) => ({ kwh: s.kwh + c.kwh, price: s.price + c.price }), { kwh: 0, price: 0 });
-    const places = [['all', 'Alle ladninger'], ['home', 'Hjemme'], ['away', 'Væk hjemme']];
+    const places = [['all', 'Alle ladninger'], ['home', 'Hjemme'], ['away', 'Ude']];
     $('#data').innerHTML = `
       <div class="head"><h1>Data</h1></div>
       <div class="seg"><button data-f="all" class="${state.filter === 'all' ? 'on' : ''}">Alle</button>${cars.map((c) => `<button data-f="${esc(c.id)}" class="${state.filter === c.id ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</div>
