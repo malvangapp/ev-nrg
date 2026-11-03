@@ -63,7 +63,7 @@ button.box { cursor: pointer; }
 /* ---- nav ---- */
 .nav {
   position: fixed; left: 0; right: 0; bottom: 0; height: calc(var(--nav-h) + var(--safe-b)); padding-bottom: var(--safe-b);
-  display: grid; grid-template-columns: repeat(3, 1fr); background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px);
+  display: grid; grid-template-columns: repeat(4, 1fr); background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px);
   border-top: 1px solid var(--border); z-index: 5;
 }
 .nav button { background: none; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; color: var(--muted); cursor: pointer; }
@@ -108,6 +108,30 @@ input.toggle:checked { background: var(--accent); }
 input.toggle:checked::after { transform: translateX(20px); }
 .card.pad { padding: 14px 16px; }
 .tag { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 0 5px; margin-left: 6px; vertical-align: 2px; }
+
+/* ---- planner ---- */
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.notice { background: #fff8e6; border: 1px solid #f0d9a0; color: #7a5b00; border-radius: 14px; padding: 10px 14px; font-size: 13px; margin: 0 0 14px; }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
+.credit { color: var(--muted); font-size: 12px; text-align: center; margin: 16px 0 0; }
+.credit a { color: inherit; }
+.settings summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.settings[open] summary { margin-bottom: 12px; }
+.tariff { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+.tariff b { text-align: center; font-weight: 600; }
+.tariff input { padding: 8px 6px; min-height: 40px; font-size: 15px; text-align: center; }
+.plan-car { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 16px; margin-bottom: 14px; }
+.plan-car h2 { display: flex; justify-content: space-between; align-items: baseline; }
+.plan-car h2 span { font-size: 13px; font-weight: 400; color: var(--muted); }
+.plan-car .when { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin: 10px 0 2px; }
+.plan-car .until { color: var(--muted); font-size: 14px; margin-bottom: 8px; }
+.plan-car .row { padding: 9px 0; font-size: 15px; }
+.save { color: #1b8a4b; font-weight: 600; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.chart { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 12px 8px 8px; margin-bottom: 14px; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: center; font-size: 13px; color: var(--muted); padding-top: 4px; }
+.chart .legend span:first-child { flex-basis: 100%; text-align: center; }
 
 /* ---- data list ---- */
 .summary { color: var(--muted); font-size: 13px; margin: 0 2px 10px; }

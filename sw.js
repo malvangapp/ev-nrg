@@ -1,5 +1,5 @@
-const CACHE = 'evnrg-v1';
-const SHELL = ['./', 'index.html', 'styles.css', 'config.js', 'calc.js', 'api.js', 'app.js', 'manifest.webmanifest',
+const CACHE = 'evnrg-v2';
+const SHELL = ['./', 'index.html', 'styles.css', 'config.js', 'calc.js', 'planner.js', 'api.js', 'app.js', 'manifest.webmanifest',
   'assets/cars/elroq.png', 'assets/cars/id3.png', 'assets/icons/icon-192.png', 'assets/icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {

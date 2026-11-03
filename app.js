@@ -78,7 +78,7 @@
   // ---------- navigation ----------
   function show(view) {
     state.view = view;
-    for (const v of ['overview', 'detail', 'data', 'form']) $(`#view-${v}`).classList.toggle('hidden', v !== view);
+    for (const v of ['overview', 'detail', 'data', 'plan', 'form']) $(`#view-${v}`).classList.toggle('hidden', v !== view);
     const navView = view === 'form' ? state.returnView : view;
     document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b.dataset.view === navView));
     if (view === 'overview') {
@@ -93,6 +93,7 @@
     closeSheet();
     show(b.dataset.view);
     renderAll();
+    if (b.dataset.view === 'plan') loadPrices(false);
   });
 
   // ---------- overview ----------
@@ -321,7 +322,157 @@
     renderOverview();
     renderDetail();
     renderData();
+    renderPlan();
   }
+
+  // ---------- cheapest charging ----------
+  const SETTINGS_KEY = 'evnrg.plan';
+  const CAR_COLORS = ['#0e7490', '#e67e22'];
+  const plan = { s: JSON.parse(JSON.stringify(Planner.DEFAULTS)), raw: null, loadedAt: 0, loading: false, error: false };
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
+    if (saved) {
+      Object.assign(plan.s, saved, { tariff: { winter: { ...plan.s.tariff.winter, ...(saved.tariff || {}).winter }, summer: { ...plan.s.tariff.summer, ...(saved.tariff || {}).summer } } });
+    }
+  } catch { /* storage unavailable or corrupt */ }
+
+  const TARIFF_IDS = [['winter', 'low'], ['winter', 'high'], ['winter', 'peak'], ['summer', 'low'], ['summer', 'high'], ['summer', 'peak']];
+  const SIMPLE_IDS = { 's-power': 'powerKw', 's-loss': 'lossPct', 's-supplement': 'supplement', 's-energinet': 'energinet', 's-elafgift': 'elafgift', 's-vat': 'vatPct', 'p-from': 'from', 'p-to': 'to' };
+
+  function fillPlanInputs() {
+    for (const [id, key] of Object.entries(SIMPLE_IDS)) $('#' + id).value = plan.s[key];
+    for (const [se, b] of TARIFF_IDS) $(`#t-${se}-${b}`).value = plan.s.tariff[se][b];
+    $('#p-ready').value = plan.s.readyBy;
+  }
+
+  function readPlanInputs() {
+    const num = (id, fallback) => {
+      const v = parseFloat($('#' + id).value.replace(',', '.'));
+      return Number.isFinite(v) ? v : fallback;
+    };
+    for (const [id, key] of Object.entries(SIMPLE_IDS)) plan.s[key] = num(id, Planner.DEFAULTS[key]);
+    for (const [se, b] of TARIFF_IDS) plan.s.tariff[se][b] = num(`t-${se}-${b}`, 0);
+    plan.s.readyBy = $('#p-ready').value || Planner.DEFAULTS.readyBy;
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(plan.s)); } catch { /* storage unavailable */ }
+  }
+
+  $('#view-plan').addEventListener('input', () => { readPlanInputs(); renderPlan(); });
+  $('#s-reset').addEventListener('click', () => {
+    plan.s = JSON.parse(JSON.stringify(Planner.DEFAULTS));
+    try { localStorage.removeItem(SETTINGS_KEY); } catch { /* storage unavailable */ }
+    fillPlanInputs();
+    renderPlan();
+  });
+  $('#plan-results').addEventListener('click', (e) => {
+    if (e.target.closest('[data-retry]')) loadPrices(true);
+  });
+
+  async function fetchDay(date) {
+    const p = (n) => String(n).padStart(2, '0');
+    const url = `https://www.elprisenligenu.dk/api/v1/prices/${date.getFullYear()}/${p(date.getMonth() + 1)}-${p(date.getDate())}_DK2.json`;
+    const res = await fetch(url);
+    return res.ok ? res.json() : null; // tomorrow is 404 until published (about 13:00)
+  }
+
+  async function loadPrices(force) {
+    if (!force && plan.raw && Date.now() - plan.loadedAt < 30 * 60000) return renderPlan();
+    plan.loading = true;
+    plan.error = false;
+    renderPlan();
+    try {
+      const now = new Date();
+      const [today, tomorrow] = await Promise.all([fetchDay(now), fetchDay(new Date(now.getTime() + 86400000)).catch(() => null)]);
+      if (!today) throw new Error('no prices');
+      plan.raw = today.concat(tomorrow || []);
+      plan.loadedAt = Date.now();
+    } catch {
+      plan.error = true;
+    }
+    plan.loading = false;
+    renderPlan();
+  }
+
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const clock = (t) => `${pad2(new Date(t).getHours())}:${pad2(new Date(t).getMinutes())}`;
+  const dayKey = (t) => { const d = new Date(t); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
+  const dayLabel = (t, now) => (dayKey(t) === dayKey(now) ? 'i dag' : dayKey(t) === dayKey(now + 86400000) ? 'i morgen' : new Date(t).toLocaleDateString('da-DK', { weekday: 'long' }));
+  const duration = (ms) => { const m = Math.round(ms / 60000); return `${Math.floor(m / 60)} t ${pad2(m % 60)} min`; };
+
+  function renderPlan() {
+    const box = $('#plan-results');
+    const s = plan.s;
+    const untaxed = TARIFF_IDS.every(([se, b]) => !s.tariff[se][b]);
+    const note = $('#plan-note');
+    note.classList.toggle('hidden', !untaxed);
+    note.textContent = 'Nettarif er ikke indtastet under Indstillinger. Prisen er derfor kun spotpris + afgifter, og dyr spidstid (17–21) tæller ikke med.';
+
+    if (plan.loading) { box.innerHTML = '<p class="empty">Henter elpriser…</p>'; return; }
+    if (plan.error) { box.innerHTML = '<p class="empty">Kunne ikke hente elpriser.</p><button class="btn" data-retry>Prøv igen</button>'; return; }
+    if (!plan.raw || !state.data) { box.innerHTML = ''; return; }
+    if (!(s.to > s.from) || s.to > 100 || s.from < 0) { box.innerHTML = '<p class="empty">Mål % skal være højere end nuværende %.</p>'; return; }
+
+    const now = Date.now();
+    const prices = Planner.buildPrices(plan.raw, s);
+    const deadline = Planner.deadlineAfter(now, s.readyBy);
+    const cars = state.data.cars.filter((c) => Planner.BATTERY_KWH[c.id]);
+    const results = cars.map((c, i) => {
+      const kwh = Planner.energyNeeded(c.id, s.from, s.to, s.lossPct);
+      return { car: c, color: CAR_COLORS[i % CAR_COLORS.length], kwh, r: Planner.plan(prices, now, deadline, kwh, s.powerKw) };
+    });
+
+    const cards = results.map(({ car, color, kwh, r }) => {
+      const head = `<h2><span><i class="dot" style="background:${color}"></i>${esc(car.name)}</span><span>${f1.format(kwh)} kWh · ${duration(r.durationMs)}</span></h2>`;
+      if (!r.best) {
+        const msg = r.reason === 'too-short'
+          ? `Kan ikke nå at blive ladet inden kl. ${clock(deadline)} (kræver ${duration(r.durationMs)}).`
+          : `Der er endnu ikke priser nok frem til kl. ${clock(deadline)}. Morgendagens priser kommer ca. kl. 13.`;
+        return `<div class="plan-car">${head}<p class="until">${msg}</p></div>`;
+      }
+      const b = r.best;
+      const first = Math.ceil(now / 900000) * 900000;
+      const start = b.start === first ? `Start nu (kl. ${clock(b.start)})` : `${dayLabel(b.start, now)} kl. ${clock(b.start)}`;
+      const endDay = dayKey(b.end) === dayKey(b.start) ? '' : `${dayLabel(b.end, now)} `;
+      const saving = r.now ? r.now.cost - b.cost : 0;
+      return `<div class="plan-car">${head}
+        <div class="when">${esc(start)}</div>
+        <div class="until">til ${esc(endDay)}kl. ${clock(b.end)}${r.partial ? ' · foreløbigt' : ''}</div>
+        <div class="row"><span class="k">Pris for ladningen</span><span class="v">${f2.format(b.cost)} kr.</span></div>
+        <div class="row"><span class="k">Gns. pris</span><span class="v">${f2.format(b.cost / kwh)} kr./kWh</span></div>
+        ${r.now ? `<div class="row"><span class="k">Hvis du starter nu</span><span class="v">${f2.format(r.now.cost)} kr.</span></div>` : ''}
+        ${r.now && saving > 0.005 ? `<div class="row"><span class="k">Du sparer</span><span class="v save">${f2.format(saving)} kr.</span></div>` : ''}
+      </div>`;
+    }).join('');
+
+    const partial = results.some(({ r }) => r.partial) ? '<p class="hint" style="margin:0 2px 14px">Morgendagens priser kommer ca. kl. 13. Resultatet kan ændre sig.</p>' : '';
+    box.innerHTML = cards + partial + planChart(prices, results, now);
+  }
+
+  function planChart(prices, results, now) {
+    const until = Math.max(...results.map(({ r }) => r.until));
+    const bars = prices.filter((p) => p.end > now && p.start < until);
+    if (bars.length < 2) return '';
+    const W = 340, left = 34, right = 6, top = 8, plotH = 100;
+    const t0 = bars[0].start, t1 = bars[bars.length - 1].end;
+    const x = (t) => left + ((Math.min(Math.max(t, t0), t1) - t0) / (t1 - t0)) * (W - left - right);
+    const max = Math.max(...bars.map((p) => p.total), 0.01);
+    const rects = bars.map((p) => {
+      const h = Math.max(0, p.total / max) * plotH;
+      return `<rect x="${x(p.start).toFixed(1)}" y="${(top + plotH - h).toFixed(1)}" width="${Math.max(1, x(p.end) - x(p.start) - 1).toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="#c6cbd1"/>`;
+    }).join('');
+    const labels = bars.filter((p) => new Date(p.start).getMinutes() === 0 && new Date(p.start).getHours() % 3 === 0)
+      .map((p) => `<text x="${x(p.start).toFixed(1)}" y="${top + plotH + 14}" font-size="9" fill="#7a828c">${pad2(new Date(p.start).getHours())}</text>`).join('');
+    const rows = results.map(({ color, r }, i) => (r.best
+      ? `<rect x="${x(r.best.start).toFixed(1)}" y="${top + plotH + 22 + i * 11}" width="${Math.max(2, x(r.best.end) - x(r.best.start)).toFixed(1)}" height="7" rx="3" fill="${color}"/>`
+      : '')).join('');
+    const H = top + plotH + 22 + results.length * 11 + 2;
+    return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Elpris pr. time">
+      <text x="${left - 4}" y="${top + 8}" font-size="9" text-anchor="end" fill="#7a828c">${f2.format(max)}</text>
+      <text x="${left - 4}" y="${top + plotH}" font-size="9" text-anchor="end" fill="#7a828c">0</text>
+      ${rects}${labels}${rows}</svg>
+      <div class="legend"><span>kr./kWh inkl. afgifter og moms</span>${results.map(({ car, color }) => `<span><i class="dot" style="background:${color}"></i>${esc(car.name)}</span>`).join('')}</div></div>`;
+  }
+
+  fillPlanInputs();
 
   // ---------- auth ----------
   function logout() {

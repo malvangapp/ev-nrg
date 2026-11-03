@@ -31,6 +31,13 @@ Fanen `Charges` har kolonnen `non_home` (afkrydsning). Marker rækker hvor bilen
 (eller slå "Ladet ikke hjemme" til i formularen). På Bildetaljer kan du slå "Inkl. ladning ude" til/fra.
 Efter en opdatering af `Code.gs`: kør `setup` igen og udgiv en **ny version** under Deploy → Manage deployments.
 
+## Billigst (billigste ladetidspunkt)
+Fanen henter timepriser for DK2 fra [elprisenligenu.dk](https://www.elprisenligenu.dk/elpris-api) og finder den billigste
+sammenhængende ladeblok, der er færdig inden "Klar kl.". Priserne er uden afgifter og moms, så appen lægger OK-tillæg,
+Energinet, elafgift, nettarif og moms til (Indstillinger). **Udfyld nettariffen fra din netvirksomhed**, ellers tæller
+dyr spidstid (17–21) ikke med. Batteristørrelser står i `planner.js` (Elroq 85 kWh, ID.3 58 kWh).
+Morgendagens priser udkommer ca. kl. 13.
+
 ## Noter
 - Adgangskoden ligger kun i Apps Script; appen gemmer et signeret login-token i ca. 180 dage.
 - kWh / 100 km beregnes ud fra ladninger til og med datoen for den seneste km-stand.
