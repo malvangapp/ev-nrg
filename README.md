@@ -34,8 +34,8 @@ Efter en opdatering af `Code.gs`: kør `setup` igen og udgiv en **ny version** u
 ## Billigst (billigste ladetidspunkt)
 Fanen henter timepriser for DK2 fra [elprisenligenu.dk](https://www.elprisenligenu.dk/elpris-api) og finder den billigste
 sammenhængende ladeblok, der er færdig inden "Klar kl.". Priserne er uden afgifter og moms, så appen lægger OK-tillæg,
-Energinet, elafgift, nettarif og moms til (Indstillinger). **Udfyld nettariffen fra din netvirksomhed**, ellers tæller
-dyr spidstid (17–21) ikke med. Batteristørrelser står i `planner.js` (Elroq 85 kWh, ID.3 58 kWh).
+Energinet, elafgift, nettarif og moms til (Indstillinger). Nettariffen er forudfyldt med N1's 2026-satser
+(fra [elselskaber.dk](https://elselskaber.dk/nettarif/), omregnet til uden moms). Batteristørrelser står i `planner.js` (Elroq 85 kWh, ID.3 58 kWh).
 Morgendagens priser udkommer ca. kl. 13.
 
 ## Noter

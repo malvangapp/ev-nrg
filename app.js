@@ -331,7 +331,7 @@
   const plan = { s: JSON.parse(JSON.stringify(Planner.DEFAULTS)), raw: null, loadedAt: 0, loading: false, error: false };
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
-    if (saved) {
+    if (saved && saved.v === Planner.DEFAULTS.v) {
       Object.assign(plan.s, saved, { tariff: { winter: { ...plan.s.tariff.winter, ...(saved.tariff || {}).winter }, summer: { ...plan.s.tariff.summer, ...(saved.tariff || {}).summer } } });
     }
   } catch { /* storage unavailable or corrupt */ }

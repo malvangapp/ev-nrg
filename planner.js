@@ -12,13 +12,16 @@ const Planner = (() => {
     energinet: 11.5,
     elafgift: 0.8,
     vatPct: 25,
+    // N1 nettarif C, valid from 1 Jan 2026. elselskaber.dk lists it incl. VAT (low 11, high 33/16,5, peak 98,8/42,8);
+    // stored here excl. VAT (÷ 1,25) because VAT is added on top of everything.
     tariff: {
-      winter: { low: 0, high: 0, peak: 0 }, // Oct-Mar
-      summer: { low: 0, high: 0, peak: 0 }, // Apr-Sep
+      winter: { low: 8.8, high: 26.4, peak: 79.04 }, // Oct-Mar
+      summer: { low: 8.8, high: 13.2, peak: 34.24 }, // Apr-Sep
     },
     readyBy: '06:30',
     from: 20,
-    to: 80,
+    to: 90,
+    v: 2, // bump when defaults change so older saved settings on a phone are dropped
   };
 
   // Bands: low 00-06, high 06-17 and 21-24, peak 17-21.
