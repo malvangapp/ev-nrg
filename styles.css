@@ -44,7 +44,7 @@ button, input, select { font: inherit; color: inherit; }
 }
 .hero { height: 120px; display: flex; align-items: center; justify-content: center; gap: 4px; margin: 4px 0 16px; }
 .hero img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.hero.two { height: auto; gap: 4px; }
+.hero.two { gap: 4px; }
 .hero.two img { flex: 1 1 0; min-width: 0; width: 0; max-width: none; max-height: none; height: auto; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .box {
