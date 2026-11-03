@@ -52,6 +52,7 @@
           <label>Dato<input id="f-date" type="date" required></label>
           <label>kWh<input id="f-kwh" type="number" inputmode="decimal" step="any" min="0" placeholder="0,0" required></label>
           <label>Pris (kr.)<input id="f-price" type="number" inputmode="decimal" step="any" min="0" placeholder="0,00" required></label>
+          <label class="switch-row"><span>Ladet ikke hjemme</span><input id="f-away" type="checkbox" class="toggle"></label>
           <p id="form-error" class="error" role="alert"></p>
           <button class="btn primary" type="submit">Gem</button>
           <button class="btn danger hidden" id="f-delete" type="button">Slet</button>

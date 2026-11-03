@@ -9,7 +9,9 @@
     detailCar: null,
     filter: 'all',
     editing: null, // charge id being edited
+    includeAway: true, // Bildetaljer: include charges made away from home
   };
+  try { state.includeAway = localStorage.getItem('evnrg.includeAway') !== '0'; } catch { /* storage unavailable */ }
 
   // ---------- formatting ----------
   const nf = (d) => new Intl.NumberFormat('da-DK', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -167,6 +169,7 @@
     $('#f-date').value = c ? c.date : today();
     $('#f-kwh').value = c ? c.kwh : '';
     $('#f-price').value = c ? c.price : '';
+    $('#f-away').checked = !!(c && c.nonHome);
     $('#form-error').textContent = '';
     $('#f-delete').classList.toggle('hidden', !c);
     show('form');
@@ -179,6 +182,7 @@
       date: $('#f-date').value,
       kwh: parseFloat($('#f-kwh').value.replace(',', '.')),
       price: parseFloat($('#f-price').value.replace(',', '.')),
+      nonHome: $('#f-away').checked,
     };
     if (!(payload.kwh > 0) || !(payload.price >= 0)) { $('#form-error').textContent = 'Udfyld kWh og pris'; return; }
     const ok = state.editing
@@ -196,6 +200,9 @@
     const { cars, charges, odometer } = state.data;
     const car = cars.find((c) => c.id === state.detailCar) || cars[0];
     const s = Calc.carStats(car, charges, odometer);
+    const shown = Calc.totals(charges, car.id, null, state.includeAway ? 'all' : 'home');
+    const home = Calc.totals(charges, car.id, null, 'home');
+    const away = Calc.totals(charges, car.id, null, 'away');
     const readings = odometer.filter((o) => o.car === car.id).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.km - a.km));
     $('#detail').innerHTML = `
       <div class="head"><h1>${esc(car.name)}</h1></div>
@@ -206,6 +213,15 @@
         <div class="note">${s.latest
           ? (s.per100 == null ? 'Ikke nok data til beregning' : `Beregnet ud fra ${f1.format(s.kwhUsed)} kWh ladet til og med ${esc(fmtDate(s.latest.date))}`)
           : 'Tilføj en km-stand for at beregne forbrug'}</div>
+      </div>
+      <div class="card pad">
+        <label class="switch-row"><span>Inkl. ladning væk hjemme<small>Slå fra for kun at se hjemmeladning</small></span><input type="checkbox" class="toggle" data-away ${state.includeAway ? 'checked' : ''}></label>
+      </div>
+      <div class="card">
+        <div class="row"><span class="k">kWh i alt${state.includeAway ? '' : ' (hjemme)'}</span><span class="v">${f1.format(shown.kwh)} kWh</span></div>
+        <div class="row"><span class="k">Pris i alt${state.includeAway ? '' : ' (hjemme)'}</span><span class="v">${f2.format(shown.price)} kr.</span></div>
+        <div class="row"><span class="k">Hjemme</span><span class="v">${f1.format(home.kwh)} kWh<small>${f2.format(home.price)} kr.</small></span></div>
+        <div class="row"><span class="k">Ude</span><span class="v">${f1.format(away.kwh)} kWh<small>${f2.format(away.price)} kr.</small></span></div>
       </div>
       <div class="card">
         <button class="row" data-purchase><span class="k">Km ved køb</span><span class="v">${f0.format(car.kmAtPurchase)} km ›</span></button>
@@ -218,6 +234,13 @@
         : '<p class="empty">Ingen km-stande endnu</p>'}
     `;
   }
+
+  $('#detail').addEventListener('change', (e) => {
+    if (!e.target.matches('[data-away]')) return;
+    state.includeAway = e.target.checked;
+    try { localStorage.setItem('evnrg.includeAway', state.includeAway ? '1' : '0'); } catch { /* storage unavailable */ }
+    renderDetail();
+  });
 
   $('#detail').addEventListener('click', (e) => {
     const car = e.target.closest('[data-car]');
@@ -276,7 +299,7 @@
       <div class="head"><h1>Data</h1></div>
       <div class="seg"><button data-f="all" class="${state.filter === 'all' ? 'on' : ''}">Alle</button>${cars.map((c) => `<button data-f="${esc(c.id)}" class="${state.filter === c.id ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</div>
       ${list.length
-        ? list.map((c) => `<button class="item" data-id="${esc(c.id)}"><div class="l"><b>${esc(fmtDate(c.date))}</b><span>${esc(carName(c.car))}</span></div><div class="r">${f2.format(c.kwh)} kWh<span>${f2.format(c.price)} kr.</span></div></button>`).join('')
+        ? list.map((c) => `<button class="item" data-id="${esc(c.id)}"><div class="l"><b>${esc(fmtDate(c.date))}</b><span>${esc(carName(c.car))}${c.nonHome ? '<em class="tag">Ude</em>' : ''}</span></div><div class="r">${f2.format(c.kwh)} kWh<span>${f2.format(c.price)} kr.</span></div></button>`).join('')
         : '<p class="empty">Ingen data endnu</p>'}
     `;
   }

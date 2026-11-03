@@ -4,11 +4,14 @@ const Calc = (() => {
 
   const forScope = (list, car) => (car ? list.filter((x) => x.car === car) : list);
 
-  function totals(charges, car, month) {
+  // kind: 'all' | 'home' | 'away' (away = charged away from home)
+  function totals(charges, car, month, kind = 'all') {
     let kwh = 0;
     let price = 0;
     for (const c of forScope(charges, car)) {
       if (month && monthOf(c.date) !== month) continue;
+      if (kind === 'home' && c.nonHome) continue;
+      if (kind === 'away' && !c.nonHome) continue;
       kwh += c.kwh;
       price += c.price;
     }

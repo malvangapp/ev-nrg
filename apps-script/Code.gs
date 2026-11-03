@@ -3,7 +3,7 @@
  * run setup() once, then deploy as a web app (execute as: me, access: anyone).
  */
 const SCHEMA = {
-  Charges: ['id', 'date', 'car', 'kwh', 'price_dkk', 'created', 'updated'],
+  Charges: ['id', 'date', 'car', 'kwh', 'price_dkk', 'created', 'updated', 'non_home'],
   Odometer: ['id', 'date', 'car', 'km'],
   Cars: ['car_id', 'name', 'km_at_purchase', 'image'],
 };
@@ -20,6 +20,8 @@ function setup() {
       sheet.getRange(2, SCHEMA[name].indexOf(col) + 1, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
     });
   });
+  const charges = ss.getSheetByName('Charges');
+  charges.getRange(2, SCHEMA.Charges.indexOf('non_home') + 1, charges.getMaxRows() - 1, 1).insertCheckboxes();
   const cars = ss.getSheetByName('Cars');
   if (cars.getLastRow() < 2) {
     cars.getRange(2, 1, 2, 4).setValues([
@@ -114,12 +116,16 @@ function readSheet(name) {
     });
 }
 
+function isTrue(v) {
+  return v === true || /^(true|ja|yes|1|x)$/i.test(String(v).trim());
+}
+
 function getAll() {
   const num = function (v) { return Number(v) || 0; };
   return {
     ok: true,
     cars: readSheet('Cars').map(function (c) { return { id: c.car_id, name: c.name, kmAtPurchase: num(c.km_at_purchase), image: c.image }; }),
-    charges: readSheet('Charges').map(function (c) { return { id: c.id, date: String(c.date), car: c.car, kwh: num(c.kwh), price: num(c.price_dkk) }; }),
+    charges: readSheet('Charges').map(function (c) { return { id: c.id, date: String(c.date), car: c.car, kwh: num(c.kwh), price: num(c.price_dkk), nonHome: isTrue(c.non_home) }; }),
     odometer: readSheet('Odometer').map(function (o) { return { id: o.id, date: String(o.date), car: o.car, km: num(o.km) }; }),
   };
 }
@@ -170,13 +176,14 @@ const HANDLERS = {
     charge(r);
     const now = new Date().toISOString();
     SpreadsheetApp.getActive().getSheetByName('Charges')
-      .appendRow([Utilities.getUuid(), r.date, r.car, r.kwh, r.price, now, now]);
+      .appendRow([Utilities.getUuid(), r.date, r.car, r.kwh, r.price, now, now, r.nonHome === true]);
   },
   updateCharge: function (r) {
     charge(r);
     const t = findRow('Charges', r.id);
     t.sheet.getRange(t.row, 2, 1, 4).setValues([[r.date, r.car, r.kwh, r.price]]);
     t.sheet.getRange(t.row, 7).setValue(new Date().toISOString());
+    t.sheet.getRange(t.row, 8).setValue(r.nonHome === true);
   },
   deleteCharge: function (r) {
     const t = findRow('Charges', r.id);

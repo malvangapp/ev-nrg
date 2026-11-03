@@ -42,7 +42,7 @@ const Api = (() => {
         const d = new Date(); d.setDate(10); d.setMonth(d.getMonth() - m);
         const iso = d.toISOString().slice(0, 10);
         ch.push({ id: 'e' + m, date: iso, car: 'elroq', kwh: 90 + m * 7, price: 190 + m * 20 });
-        ch.push({ id: 'v' + m, date: iso, car: 'id3', kwh: 60 + m * 5, price: 130 + m * 11 });
+        ch.push({ id: 'v' + m, date: iso, car: 'id3', kwh: 60 + m * 5, price: 130 + m * 11, nonHome: m % 2 === 1 });
       }
       demoData = {
         cars: [
@@ -61,7 +61,7 @@ const Api = (() => {
     const del = (k) => { d[k] = d[k].filter((x) => x.id !== p.id); };
     const upd = (k) => { d[k] = d[k].map((x) => (x.id === p.id ? { ...x, ...p } : x)); };
     switch (action) {
-      case 'addCharge': d.charges.push({ id: uid(), date: p.date, car: p.car, kwh: p.kwh, price: p.price }); break;
+      case 'addCharge': d.charges.push({ id: uid(), date: p.date, car: p.car, kwh: p.kwh, price: p.price, nonHome: p.nonHome === true }); break;
       case 'updateCharge': upd('charges'); break;
       case 'deleteCharge': del('charges'); break;
       case 'addOdometer': d.odometer.push({ id: uid(), date: p.date, car: p.car, km: p.km }); break;

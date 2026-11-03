@@ -26,6 +26,11 @@ Uden `API_URL` kører appen i demo-tilstand med eksempeldata (intet gemmes).
 - `sw.js`, `manifest.webmanifest` – installation / offline-skal
 - `apps-script/Code.gs` – backend
 
+## Ladning væk hjemme
+Fanen `Charges` har kolonnen `non_home` (afkrydsning). Marker rækker hvor bilen ikke blev ladet hjemme
+(eller slå "Ladet ikke hjemme" til i formularen). På Bildetaljer kan du slå "Inkl. ladning væk hjemme" til/fra.
+Efter en opdatering af `Code.gs`: kør `setup` igen og udgiv en **ny version** under Deploy → Manage deployments.
+
 ## Noter
 - Adgangskoden ligger kun i Apps Script; appen gemmer et signeret login-token i ca. 180 dage.
 - kWh / 100 km beregnes ud fra ladninger til og med datoen for den seneste km-stand.
