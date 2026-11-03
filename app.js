@@ -215,7 +215,7 @@
           : 'Tilføj en km-stand for at beregne forbrug'}</div>
       </div>
       <div class="card pad">
-        <label class="switch-row"><span>Inkl. ladning væk hjemme<small>Slå fra for kun at se hjemmeladning</small></span><input type="checkbox" class="toggle" data-away ${state.includeAway ? 'checked' : ''}></label>
+        <label class="switch-row"><span>Inkl. ladning ude<small>Slå fra for kun at se hjemmeladning</small></span><input type="checkbox" class="toggle" data-away ${state.includeAway ? 'checked' : ''}></label>
       </div>
       <div class="card">
         <div class="row"><span class="k">kWh i alt${state.includeAway ? '' : ' (hjemme)'}</span><span class="v">${f1.format(shown.kwh)} kWh</span></div>
