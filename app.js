@@ -343,13 +343,24 @@
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     const sum = list.reduce((s, c) => ({ kwh: s.kwh + c.kwh, price: s.price + c.price }), { kwh: 0, price: 0 });
     const places = [['all', 'Alle ladninger'], ['home', 'Hjemme'], ['away', 'Ude']];
+    const groups = []; // list is sorted newest first, so months come out newest first too
+    for (const c of list) {
+      const key = Calc.monthOf(c.date);
+      let g = groups[groups.length - 1];
+      if (!g || g.key !== key) { g = { key, items: [], kwh: 0, price: 0 }; groups.push(g); }
+      g.items.push(c);
+      g.kwh += c.kwh;
+      g.price += c.price;
+    }
     $('#data').innerHTML = `
       <div class="head"><h1>Data</h1></div>
       <div class="seg"><button data-f="all" class="${state.filter === 'all' ? 'on' : ''}">Alle</button>${cars.map((c) => `<button data-f="${esc(c.id)}" class="${state.filter === c.id ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</div>
       <div class="seg">${places.map(([k, label]) => `<button data-place="${k}" class="${state.place === k ? 'on' : ''}">${label}</button>`).join('')}</div>
       ${list.length ? `<p class="summary">${list.length} ladninger · ${f1.format(sum.kwh)} kWh · ${f2.format(sum.price)} kr.${sum.kwh > 0 ? ` · ${f2.format(sum.price / sum.kwh)} kr./kWh` : ''}</p>` : ''}
       ${list.length
-        ? list.map((c) => `<button class="item" data-id="${esc(c.id)}"><div class="l"><b>${esc(fmtDate(c.date))}</b><span>${esc(carName(c.car))}${c.nonHome ? '<em class="tag">Ude</em>' : ''}</span></div><div class="r">${f2.format(c.kwh)} kWh<span>${f2.format(c.price)} kr.</span><span>${f2.format(c.kwh > 0 ? c.price / c.kwh : 0)} kr./kWh</span></div></button>`).join('')
+        ? `<div class="dlegend"><span>Dag</span><span>Bil</span><span>kWh</span><span>Pris kr.</span><span>kr./kWh</span></div>${groups.map((g) => `
+          <div class="mhead"><b>${esc(fmtMonth(g.key))}</b><span>${f1.format(g.kwh)} kWh · ${f0.format(g.price)} kr.</span></div>
+          <div class="card rows">${g.items.map((c) => `<button class="drow" data-id="${esc(c.id)}"><span class="d">${+c.date.slice(8, 10)}.</span><span class="c">${esc(carName(c.car).split(' ').pop())}${c.nonHome ? '<em class="tag">Ude</em>' : ''}</span><span>${f1.format(c.kwh)}</span><span>${f2.format(c.price)}</span><span class="pk">${f2.format(c.kwh > 0 ? c.price / c.kwh : 0)}</span></button>`).join('')}</div>`).join('')}`
         : '<p class="empty">Ingen data endnu</p>'}
     `;
   }
