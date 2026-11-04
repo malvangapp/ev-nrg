@@ -1,6 +1,7 @@
 // Cheapest-charging planner (no DOM) so it can be tested in Node.
 const Planner = (() => {
-  const BATTERY_KWH = { elroq: 85, id3: 58 };
+  // Net (usable) capacity: the car's charge % refers to this, not the gross figure (Elroq 84, ID.3 62).
+  const BATTERY_KWH = { elroq: 77, id3: 58 };
   const HOUR = 3600000;
   const STEP = 15 * 60000;
 
