@@ -89,6 +89,10 @@
       const pager = $('#pager');
       pager.scrollLeft = state.page * pager.clientWidth;
     }
+    if (view === 'detail' && state.data) {
+      const pager = $('#detail');
+      pager.scrollLeft = detailIndex() * pager.clientWidth;
+    }
   }
   $('#nav').addEventListener('click', (e) => {
     const b = e.target.closest('button');
@@ -218,17 +222,15 @@
   });
 
   // ---------- car detail ----------
-  function renderDetail() {
-    const { cars, charges, odometer } = state.data;
-    const car = cars.find((c) => c.id === state.detailCar) || cars[0];
+  function detailPage(car) {
+    const { charges, odometer } = state.data;
     const s = Calc.carStats(car, charges, odometer);
     const shown = Calc.totals(charges, car.id, null, state.includeAway ? 'all' : 'home');
     const home = Calc.totals(charges, car.id, null, 'home');
     const away = Calc.totals(charges, car.id, null, 'away');
     const readings = odometer.filter((o) => o.car === car.id).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.km - a.km));
-    $('#detail').innerHTML = `
+    return `<div class="dpage" data-car="${esc(car.id)}">
       <div class="head"><h1>${esc(car.name)}</h1></div>
-      <div class="seg">${cars.map((c) => `<button data-car="${esc(c.id)}" class="${c.id === car.id ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</div>
       <div class="hero"><img src="${esc(car.image)}" alt=""></div>
       <div class="big">
         <div class="value">${s.per100 == null ? '–' : f1.format(s.per100)} <span class="unit">kWh / 100 km</span></div>
@@ -254,8 +256,29 @@
       ${readings.length
         ? `<div class="card">${readings.map((o) => `<button class="row" data-km="${esc(o.id)}"><span class="k">${esc(fmtDate(o.date))}</span><span class="v">${f0.format(o.km)} km ›</span></button>`).join('')}</div>`
         : '<p class="empty">Ingen km-stande endnu</p>'}
-    `;
+    </div>`;
   }
+
+  const detailIndex = () => Math.max(0, state.data.cars.findIndex((c) => c.id === state.detailCar));
+
+  function renderDetail() {
+    const pager = $('#detail');
+    const tops = [...pager.querySelectorAll('.dpage')].map((p) => p.scrollTop); // keep vertical position across re-renders
+    pager.innerHTML = state.data.cars.map(detailPage).join('');
+    pager.querySelectorAll('.dpage').forEach((p, i) => { p.scrollTop = tops[i] || 0; });
+    $('#detail-dots').innerHTML = state.data.cars.map((c) => `<i class="${c.id === state.detailCar ? 'on' : ''}"></i>`).join('');
+    if (state.view === 'detail') pager.scrollLeft = detailIndex() * pager.clientWidth;
+  }
+
+  $('#detail').addEventListener('scroll', () => {
+    const p = $('#detail');
+    const i = Math.round(p.scrollLeft / p.clientWidth);
+    const car = state.data && state.data.cars[i];
+    if (car && car.id !== state.detailCar) {
+      state.detailCar = car.id;
+      document.querySelectorAll('#detail-dots i').forEach((d, n) => d.classList.toggle('on', n === i));
+    }
+  }, { passive: true });
 
   $('#detail').addEventListener('change', (e) => {
     if (!e.target.matches('[data-away]')) return;
@@ -265,8 +288,8 @@
   });
 
   $('#detail').addEventListener('click', (e) => {
-    const car = e.target.closest('[data-car]');
-    if (car) { state.detailCar = car.dataset.car; return renderDetail(); }
+    const page = e.target.closest('.dpage');
+    if (page) state.detailCar = page.dataset.car;
     if (e.target.closest('[data-purchase]')) return openPurchaseSheet();
     if (e.target.closest('[data-add-km]')) return openOdometerSheet(null);
     const km = e.target.closest('[data-km]');
