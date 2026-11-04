@@ -28,7 +28,7 @@ Uden `API_URL` kører appen i demo-tilstand med eksempeldata (intet gemmes).
 
 ## Ladning væk hjemme
 Fanen `Charges` har kolonnen `non_home` (afkrydsning). Marker rækker hvor bilen ikke blev ladet hjemme
-(eller slå "Ladet ikke hjemme" til i formularen). På Bildetaljer kan du slå "Inkl. ladning ude" til/fra.
+(eller slå "Ladet ude" til i formularen). På Bildetaljer kan du slå "Inkl. ladning ude" til/fra.
 Efter en opdatering af `Code.gs`: kør `setup` igen og udgiv en **ny version** under Deploy → Manage deployments.
 
 ## Billigst (billigste ladetidspunkt)
