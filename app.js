@@ -14,6 +14,9 @@
   };
   try { state.includeAway = localStorage.getItem('evnrg.includeAway') !== '0'; } catch { /* storage unavailable */ }
 
+  // iOS ignores user-scalable=no, so block the pinch gesture explicitly.
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault()));
+
   // ---------- formatting ----------
   const nf = (d) => new Intl.NumberFormat('da-DK', { minimumFractionDigits: d, maximumFractionDigits: d });
   const f0 = nf(0), f1 = nf(1), f2 = nf(2);
@@ -108,7 +111,7 @@
       const all = Calc.totals(charges, scope, null);
       const hero = car
         ? `<div class="hero"><img src="${esc(car.image)}" alt="${esc(car.name)}"></div>`
-        : `<div class="hero two">${cars.map((c) => `<img src="${esc(c.image)}" alt="${esc(c.name)}">`).join('')}</div>`;
+        : `<div class="hero two">${cars.slice().reverse().map((c) => `<img src="${esc(c.image)}" alt="${esc(c.name)}">`).join('')}</div>`;
       const label = month === currentMonth() ? 'Denne måned' : fmtMonth(month);
       return `<div class="page" data-i="${i}">
         <div class="head"><h1>${esc(car ? car.name : 'Total')}</h1><button class="plus" data-add="${i}" aria-label="Tilføj ladning">+</button></div>

@@ -9,7 +9,7 @@
   --safe-t: env(safe-area-inset-top, 0px);
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; height: 100%; }
+html, body { margin: 0; height: 100%; touch-action: pan-x pan-y; } /* no pinch or double-tap zoom */
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text);
@@ -44,8 +44,14 @@ button, input, select { font: inherit; color: inherit; }
 }
 .hero { height: 120px; display: flex; align-items: center; justify-content: center; gap: 4px; margin: 4px 0 16px; }
 .hero img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.hero.two { gap: 4px; }
-.hero.two img { flex: 1 1 0; min-width: 0; width: 0; max-width: none; max-height: none; height: auto; }
+/* Overview pages: the car image takes whatever height is left above the boxes. */
+.page { display: flex; flex-direction: column; }
+.page .hero { position: relative; height: auto; flex: 1 1 auto; min-height: 120px; }
+.page .hero img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; object-fit: contain; }
+.page .hero.two { gap: 0; }
+.page .hero.two img { position: relative; inset: auto; flex: none; width: 62%; }
+.page .hero.two img:first-child { z-index: 2; object-position: left center; }
+.page .hero.two img + img { margin-left: -24%; object-position: right center; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .box {
   aspect-ratio: 1; background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 14px;
@@ -120,7 +126,7 @@ input.toggle:checked::after { transform: translateX(20px); }
 .settings[open] summary { margin-bottom: 12px; }
 .tariff { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
 .tariff b { text-align: center; font-weight: 600; }
-.tariff input { padding: 8px 6px; min-height: 40px; font-size: 15px; text-align: center; }
+.tariff input { padding: 8px 6px; min-height: 40px; font-size: 16px; text-align: center; }
 .plan-car { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 16px; margin-bottom: 14px; }
 .plan-car h2 { display: flex; justify-content: space-between; align-items: baseline; }
 .plan-car h2 span { font-size: 13px; font-weight: 400; color: var(--muted); }
