@@ -10,9 +10,11 @@
     detailCar: null,
     filter: 'all',
     place: 'all', // Data list: 'all' | 'home' | 'away'
+    collapsed: new Set(), // Data list: months folded shut
     editing: null, // charge id being edited
     includeAway: true, // Bildetaljer: include charges made away from home
   };
+  try { state.collapsed = new Set(JSON.parse(localStorage.getItem('evnrg.collapsed')) || []); } catch { /* storage unavailable */ }
   try { state.includeAway = localStorage.getItem('evnrg.includeAway') !== '0'; } catch { /* storage unavailable */ }
 
   // iOS ignores user-scalable=no, so block the pinch gesture explicitly.
@@ -359,14 +361,21 @@
       ${list.length ? `<p class="summary">${list.length} ladninger · ${f1.format(sum.kwh)} kWh · ${f2.format(sum.price)} kr.${sum.kwh > 0 ? ` · ${f2.format(sum.price / sum.kwh)} kr./kWh` : ''}</p>` : ''}
       ${list.length
         ? groups.map((g) => `
-          <div class="mhead"><b>${esc(fmtMonth(g.key))}</b><span>${f1.format(g.kwh)} kWh · ${f0.format(g.price)} kr.</span></div>
-          ${g.items.map((c) => `<button class="item" data-id="${esc(c.id)}"><div class="l"><b>${esc(fmtDate(c.date))}</b><span>${esc(carName(c.car))}${c.nonHome ? '<em class="tag">Ude</em>' : ''}</span></div><div class="r">${f2.format(c.kwh)} kWh<span>${f2.format(c.price)} kr.</span><span>${f2.format(c.kwh > 0 ? c.price / c.kwh : 0)} kr./kWh</span></div></button>`).join('')}`).join('')
+          <button class="mhead" data-toggle="${g.key}" aria-expanded="${!state.collapsed.has(g.key)}"><b>${state.collapsed.has(g.key) ? '▸' : '▾'} ${esc(fmtMonth(g.key))}</b><span>${g.items.length} · ${f1.format(g.kwh)} kWh · ${f0.format(g.price)} kr.</span></button>
+          ${state.collapsed.has(g.key) ? '' : g.items.map((c) => `<button class="item" data-id="${esc(c.id)}"><div class="l"><b>${esc(fmtDate(c.date))}</b><span>${esc(carName(c.car))}${c.nonHome ? '<em class="tag">Ude</em>' : ''}</span></div><div class="r">${f2.format(c.kwh)} kWh<span>${f2.format(c.price)} kr.</span><span>${f2.format(c.kwh > 0 ? c.price / c.kwh : 0)} kr./kWh</span></div></button>`).join('')}`).join('')
         : '<p class="empty">Ingen data endnu</p>'}
     `;
   }
   $('#data').addEventListener('click', (e) => {
     const f = e.target.closest('[data-f]');
     if (f) { state.filter = f.dataset.f; return renderData(); }
+    const tg = e.target.closest('[data-toggle]');
+    if (tg) {
+      const k = tg.dataset.toggle;
+      if (!state.collapsed.delete(k)) state.collapsed.add(k);
+      try { localStorage.setItem('evnrg.collapsed', JSON.stringify([...state.collapsed])); } catch { /* storage unavailable */ }
+      return renderData();
+    }
     const pl = e.target.closest('[data-place]');
     if (pl) { state.place = pl.dataset.place; return renderData(); }
     const it = e.target.closest('[data-id]');
