@@ -30,7 +30,7 @@ button, input, select { font: inherit; color: inherit; }
 /* ---- layout ---- */
 #app { height: 100dvh; position: relative; }
 .view { position: absolute; inset: 0 0 calc(var(--nav-h) + var(--safe-b)) 0; display: flex; flex-direction: column; }
-.scroll { flex: 1; overflow-y: auto; padding: calc(var(--safe-t) + 16px) 16px 24px; -webkit-overflow-scrolling: touch; }
+.scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: calc(var(--safe-t) + 16px) 16px 24px; -webkit-overflow-scrolling: touch; }
 .page-head, .head { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin-bottom: 8px; }
 .link { background: none; border: 0; color: var(--accent); font-size: 17px; padding: 8px 0; cursor: pointer; }
 
@@ -144,7 +144,7 @@ input.toggle:checked::after { transform: translateX(20px); }
 /* ---- data list ---- */
 .summary { color: var(--muted); font-size: 13px; margin: 0 2px 10px; }
 button.mhead { width: 100%; background: none; border: 0; padding: 6px 2px; color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
-.mhead { display: flex; justify-content: space-between; align-items: baseline; margin: 14px 2px 6px; font-size: 14px; }
+.mhead { display: flex; justify-content: space-between; align-items: baseline; margin: 14px 0 6px; font-size: 14px; }
 .mhead span { color: var(--muted); font-size: 12px; }
 .item { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; margin-bottom: 8px; background: #fff; border: 1px solid var(--border); border-radius: 16px; text-align: left; cursor: pointer; }
 .item .l b { display: block; font-size: 16px; }
