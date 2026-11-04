@@ -425,11 +425,19 @@
 
     const cards = results.map(({ car, color, kwh, r }) => {
       const head = `<h2><span><i class="dot" style="background:${color}"></i>${esc(car.name)}</span><span>${f1.format(kwh)} kWh · ${duration(r.durationMs)}</span></h2>`;
+      if (!r.best && r.limited) {
+        const l = r.limited;
+        const pct = Math.min(s.to, Planner.reachedPct(car.id, s.from, l.kwh, s.lossPct));
+        return `<div class="plan-car">${head}
+          <div class="when">Når op på ca. ${pct} %</div>
+          <div class="until">Når ikke ${s.to} % inden kl. ${clock(deadline)} (kræver ${duration(r.durationMs)}). Start nu for at nå længst.</div>
+          <div class="row"><span class="k">Lader</span><span class="v">kl. ${clock(l.start)} – ${clock(l.end)}</span></div>
+          <div class="row"><span class="k">Energi</span><span class="v">${f1.format(l.kwh)} kWh</span></div>
+          ${l.cost != null ? `<div class="row"><span class="k">Pris for ladningen</span><span class="v">${f2.format(l.cost)} kr.</span></div>` : ''}
+        </div>`;
+      }
       if (!r.best) {
-        const msg = r.reason === 'too-short'
-          ? `Kan ikke nå at blive ladet inden kl. ${clock(deadline)} (kræver ${duration(r.durationMs)}).`
-          : `Der er endnu ikke priser nok frem til kl. ${clock(deadline)}. Morgendagens priser kommer ca. kl. 13.`;
-        return `<div class="plan-car">${head}<p class="until">${msg}</p></div>`;
+        return `<div class="plan-car">${head}<p class="until">Der er endnu ikke priser nok frem til kl. ${clock(deadline)}. Morgendagens priser kommer ca. kl. 13.</p></div>`;
       }
       const b = r.best;
       const first = Math.ceil(now / 900000) * 900000;
@@ -464,9 +472,12 @@
     }).join('');
     const labels = bars.filter((p) => new Date(p.start).getMinutes() === 0 && new Date(p.start).getHours() % 3 === 0)
       .map((p) => `<text x="${x(p.start).toFixed(1)}" y="${top + plotH + 14}" font-size="9" fill="#7a828c">${pad2(new Date(p.start).getHours())}</text>`).join('');
-    const rows = results.map(({ color, r }, i) => (r.best
-      ? `<rect x="${x(r.best.start).toFixed(1)}" y="${top + plotH + 22 + i * 11}" width="${Math.max(2, x(r.best.end) - x(r.best.start)).toFixed(1)}" height="7" rx="3" fill="${color}"/>`
-      : '')).join('');
+    const rows = results.map(({ color, r }, i) => {
+      const blk = r.best || r.limited;
+      return blk
+        ? `<rect x="${x(blk.start).toFixed(1)}" y="${top + plotH + 22 + i * 11}" width="${Math.max(2, x(blk.end) - x(blk.start)).toFixed(1)}" height="7" rx="3" fill="${color}"/>`
+        : '';
+    }).join('');
     const H = top + plotH + 22 + results.length * 11 + 2;
     return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Elpris pr. time">
       <text x="${left - 4}" y="${top + 8}" font-size="9" text-anchor="end" fill="#7a828c">${f2.format(max)}</text>

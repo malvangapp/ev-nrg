@@ -7,8 +7,8 @@ const Planner = (() => {
 
   // All amounts in øre/kWh unless noted. Net tariff = grid company fee per season and time band.
   const DEFAULTS = {
-    powerKw: 10.5,
-    lossPct: 5,
+    powerKw: 10.6,
+    lossPct: 6,
     supplement: 0, // OK Højt Forbrug: no per-kWh supplement (49 kr./month is not time dependent)
     energinet: 11.5,
     elafgift: 0.8,
@@ -22,7 +22,7 @@ const Planner = (() => {
     readyBy: '06:30',
     from: 20,
     to: 90,
-    v: 2, // bump when defaults change so older saved settings on a phone are dropped
+    v: 3, // bump when defaults change so older saved settings on a phone are dropped
   };
 
   // Bands: low 00-06, high 06-17 and 21-24, peak 17-21.
@@ -81,7 +81,15 @@ const Planner = (() => {
     const result = { durationMs, gridKwh, until, partial: dataEnd < deadline, best: null, now: null, reason: null };
     const first = ceilStep(now);
     if (first + durationMs > deadline) {
+      // Target can't be reached in time: charge from now until the deadline and report how far it gets.
       result.reason = 'too-short';
+      const availMs = Math.max(0, deadline - now);
+      result.limited = {
+        start: now,
+        end: now + availMs,
+        kwh: (powerKw * availMs) / HOUR,
+        cost: availMs ? blockCost(prices, now, availMs, powerKw) : null,
+      };
       return result;
     }
     const nowCost = blockCost(prices, first, durationMs, powerKw);
@@ -102,7 +110,13 @@ const Planner = (() => {
     return battery * ((toPct - fromPct) / 100) * (1 + lossPct / 100);
   }
 
-  return { BATTERY_KWH, DEFAULTS, buildPrices, blockCost, deadlineAfter, plan, energyNeeded, band, season };
+  // Charge % reached after drawing gridKwh from the wall (whole percent, rounded down).
+  function reachedPct(carId, fromPct, gridKwh, lossPct) {
+    const battery = BATTERY_KWH[carId];
+    return Math.floor(fromPct + (gridKwh / (1 + lossPct / 100) / battery) * 100);
+  }
+
+  return { BATTERY_KWH, DEFAULTS, buildPrices, blockCost, deadlineAfter, plan, energyNeeded, reachedPct, band, season };
 })();
 
 if (typeof module !== 'undefined') module.exports = Planner;
