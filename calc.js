@@ -9,7 +9,7 @@ const Calc = (() => {
     let kwh = 0;
     let price = 0;
     for (const c of forScope(charges, car)) {
-      if (month && monthOf(c.date) !== month) continue;
+      if (month && !c.date.startsWith(month)) continue; // month 'YYYY-MM' or year 'YYYY'
       if (kind === 'home' && c.nonHome) continue;
       if (kind === 'away' && !c.nonHome) continue;
       kwh += c.kwh;
@@ -20,6 +20,11 @@ const Calc = (() => {
 
   function months(charges, car) {
     const set = new Set(forScope(charges, car).map((c) => monthOf(c.date)));
+    return [...set].sort().reverse();
+  }
+
+  function years(charges, car) {
+    const set = new Set(forScope(charges, car).map((c) => c.date.slice(0, 4)));
     return [...set].sort().reverse();
   }
 
@@ -42,7 +47,7 @@ const Calc = (() => {
     return stats;
   }
 
-  return { monthOf, totals, months, latestReading, carStats };
+  return { monthOf, totals, months, years, latestReading, carStats };
 })();
 
 if (typeof module !== 'undefined') module.exports = Calc;

@@ -6,6 +6,7 @@
     returnView: 'overview',
     page: 0, // 0 = car 1, 1 = car 2, 2 = total
     month: null, // selected month, shared by all overview pages; null = current month
+    year: null, // selected year for the bottom boxes: null = current year, 'total' = everything
     detailCar: null,
     filter: 'all',
     place: 'all', // Data list: 'all' | 'home' | 'away'
@@ -108,7 +109,9 @@
       const scope = car ? car.id : null;
       const month = state.month || currentMonth();
       const m = Calc.totals(charges, scope, month);
-      const all = Calc.totals(charges, scope, null);
+      const year = state.year || currentMonth().slice(0, 4);
+      const all = Calc.totals(charges, scope, year === 'total' ? null : year);
+      const yearLabel = year === 'total' ? 'Total' : year === currentMonth().slice(0, 4) ? 'I år' : year;
       const hero = car
         ? `<div class="hero"><img src="${esc(car.image)}" alt="${esc(car.name)}"></div>`
         : `<div class="hero two">${cars.slice().reverse().map((c) => `<img src="${esc(c.image)}" alt="${esc(c.name)}">`).join('')}</div>`;
@@ -119,8 +122,8 @@
         <div class="grid">
           <button class="box" data-month="${i}"><div class="label"><span>${esc(label)}</span><span class="chev">▾</span></div><div class="value">${f1.format(m.kwh)} <span class="unit">kWh</span></div></button>
           <button class="box" data-month="${i}"><div class="label"><span>${esc(label)}</span><span class="chev">▾</span></div><div class="value">${f0.format(m.price)} <span class="unit">kr.</span></div></button>
-          <div class="box"><div class="label"><span>I alt</span></div><div class="value">${f1.format(all.kwh)} <span class="unit">kWh</span></div></div>
-          <div class="box"><div class="label"><span>I alt</span></div><div class="value">${f0.format(all.price)} <span class="unit">kr.</span></div></div>
+          <button class="box" data-year><div class="label"><span>${esc(yearLabel)}</span><span class="chev">▾</span></div><div class="value">${f1.format(all.kwh)} <span class="unit">kWh</span></div></button>
+          <button class="box" data-year><div class="label"><span>${esc(yearLabel)}</span><span class="chev">▾</span></div><div class="value">${f0.format(all.price)} <span class="unit">kr.</span></div></button>
         </div>
       </div>`;
     }).join('');
@@ -141,8 +144,23 @@
     const add = e.target.closest('[data-add]');
     if (add) return openForm(null, +add.dataset.add < 2 ? state.data.cars[+add.dataset.add].id : null, 'overview');
     const mb = e.target.closest('[data-month]');
-    if (mb) openMonthPicker();
+    if (mb) return openMonthPicker();
+    if (e.target.closest('[data-year]')) openYearPicker();
   });
+
+  function openYearPicker() {
+    const thisYear = currentMonth().slice(0, 4);
+    const sel = state.year || thisYear;
+    const options = [['total', 'Total'], ...Calc.years(state.data.charges, null).map((y) => [y, y === thisYear ? `${y} (i år)` : y])];
+    const sheet = openSheet(`<h2>Vælg år</h2>${options.map(([k, label]) => `<button class="month-opt ${k === sel ? 'on' : ''}" data-y="${k}"><span>${esc(label)}</span>${k === sel ? '<span>✓</span>' : ''}</button>`).join('')}`);
+    sheet.onclick = (e) => {
+      const b = e.target.closest('[data-y]');
+      if (!b) return;
+      state.year = b.dataset.y;
+      closeSheet();
+      renderOverview();
+    };
+  }
 
   function openMonthPicker() {
     const list = Calc.months(state.data.charges, null); // months with data for any car
