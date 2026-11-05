@@ -12,6 +12,7 @@
     place: 'all', // Data list: 'all' | 'home' | 'away'
     collapsed: new Set(), // Data list: months folded shut
     tiresOpen: false, // Bildetaljer: tire section expanded
+    stockOpen: false, // Bildetaljer: tires in stock shown
     editing: null, // charge id being edited
     includeAway: true, // Bildetaljer: include charges made away from home
   };
@@ -252,7 +253,7 @@
     if (!i) return `<button class="row" data-pos-empty="${p}"><span class="k">${TIRE_LABEL[p]}</span><span class="v">Intet dæk ›</span></button>`;
     return `<button class="row" data-tire="${esc(i.tire.id)}"><span class="k">${TIRE_LABEL[p]}<small>${esc(i.tire.name)} · ${TYPE_LABEL[i.tire.type]}</small></span><span class="v">${f0.format(i.kmTotal)} km ›<small>${i.open.dateOn ? `siden ${esc(fmtDate(i.open.dateOn))}` : 'siden køb'} · ${f0.format(i.open.kmUsed)} km</small></span></button>`;
   }).join('')}
-         ${tr.stock.length ? `<div class="sub">På lager</div>${tr.stock.map((i) => `<button class="row" data-tire="${esc(i.tire.id)}"><span class="k">${esc(i.tire.name)}<small>${TYPE_LABEL[i.tire.type]}${i.tire.brand ? ` · ${esc(i.tire.brand)}` : ''}</small></span><span class="v">${f0.format(i.kmTotal)} km ›</span></button>`).join('')}` : ''}
+         ${tr.stock.length ? `<button class="row" data-stock-toggle aria-expanded="${state.stockOpen}"><span class="k">På lager</span><span class="v">${tr.stock.length} dæk ${state.stockOpen ? '▾' : '▸'}</span></button>${state.stockOpen ? tr.stock.map((i) => `<button class="row" data-tire="${esc(i.tire.id)}"><span class="k">${esc(i.tire.name)}<small>${TYPE_LABEL[i.tire.type]}</small></span><span class="v">${f0.format(i.kmTotal)} km ›</span></button>`).join('') : ''}` : ''}
          <div class="row actions"><button class="link" data-tire-swap>+ Skift dæk</button><button class="link" data-tire-new>+ Nyt dæk</button></div>`;
     const readings = odometer.filter((o) => o.car === car.id).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.km - a.km));
     return `<div class="dpage" data-car="${esc(car.id)}">
@@ -332,6 +333,7 @@
     if (e.target.closest('[data-purchase]')) return openPurchaseSheet();
     if (e.target.closest('[data-plate]')) return openPlateSheet();
     if (e.target.closest('[data-tires-toggle]')) { state.tiresOpen = !state.tiresOpen; return renderDetail(); }
+    if (e.target.closest('[data-stock-toggle]')) { state.stockOpen = !state.stockOpen; return renderDetail(); }
     if (e.target.closest('[data-tire-init]')) return openTireInit();
     if (e.target.closest('[data-tire-swap]')) return openTireChange(Calc.TIRE_POS);
     if (e.target.closest('[data-tire-new]')) return openTireNew();
@@ -369,7 +371,6 @@
       <p class="hint">De fire dæk på bilen registreres som monteret fra købet, så deres km følger bilens km.</p>
       <form class="form">
         <label>Type<select id="s-type">${typeOptions('summer')}</select></label>
-        <label>Mærke / størrelse (valgfrit)<input id="s-brand" type="text" maxlength="40" autocomplete="off"></label>
         <label>Monteret fra km<input id="s-km" type="number" inputmode="numeric" min="0" step="1" value="${car.kmAtPurchase}" required></label>
         <button class="btn primary" type="submit">Gem</button>
       </form>`);
@@ -377,7 +378,7 @@
       e.preventDefault();
       const km = parseFloat($('#s-km', sheet).value);
       if (!(km >= 0)) return;
-      if (await mutate('initTires', { car: car.id, type: $('#s-type', sheet).value, brand: $('#s-brand', sheet).value, date: '', km })) afterTireChange();
+      if (await mutate('initTires', { car: car.id, type: $('#s-type', sheet).value, date: '', km })) afterTireChange();
     };
   }
 
@@ -387,7 +388,6 @@
       <form class="form">
         <label>Navn<input id="s-name" type="text" maxlength="40" autocomplete="off" placeholder="fx Vinter" required></label>
         <label>Type<select id="s-type">${typeOptions('winter')}</select></label>
-        <label>Mærke / størrelse (valgfrit)<input id="s-brand" type="text" maxlength="40" autocomplete="off"></label>
         <div class="pair">
           <label>Antal<input id="s-count" type="number" inputmode="numeric" min="1" max="8" step="1" value="4"></label>
           <label>Km allerede på dækket<input id="s-start" type="number" inputmode="numeric" min="0" step="1" value="0"></label>
@@ -401,7 +401,6 @@
         car: state.detailCar,
         name: $('#s-name', sheet).value,
         type: $('#s-type', sheet).value,
-        brand: $('#s-brand', sheet).value,
         count: parseInt($('#s-count', sheet).value, 10) || 1,
         startKm: parseFloat($('#s-start', sheet).value) || 0,
       };
@@ -482,7 +481,7 @@
     const pos = info.open ? info.open.pos : null;
     const sheet = openSheet(`<h2>${esc(t.name)}</h2>
       <div class="card">
-        <div class="row"><span class="k">Type</span><span class="v">${TYPE_LABEL[t.type]}${t.brand ? `<small>${esc(t.brand)}</small>` : ''}</span></div>
+        <div class="row"><span class="k">Type</span><span class="v">${TYPE_LABEL[t.type]}</span></div>
         <div class="row"><span class="k">Km i alt</span><span class="v">${f0.format(info.kmTotal)} km${t.startKm ? `<small>heraf ${f0.format(t.startKm)} km før registrering</small>` : ''}</span></div>
         <div class="row"><span class="k">Status</span><span class="v">${pos ? `Monteret: ${TIRE_LABEL[pos]}` : 'På lager'}</span></div>
       </div>
@@ -490,6 +489,7 @@
       <div class="form">
         ${pos ? '<button class="btn" id="t-off" type="button">Tag af (til lager)</button>' : stock.some((i) => i.tire.id === id) ? '<button class="btn" id="t-on" type="button">Monter dæk</button>' : ''}
         <button class="btn" id="t-edit" type="button">Rediger dæk</button>
+        <button class="btn danger" id="t-del" type="button">Slet dæk</button>
       </div>`);
     sheet.onclick = (e) => {
       const fit = e.target.closest('[data-fit]');
@@ -500,6 +500,10 @@
     const on = $('#t-on', sheet);
     if (on) on.onclick = () => openTireChange(Calc.TIRE_POS.filter((p) => !mounted[p]).slice(0, 1));
     $('#t-edit', sheet).onclick = () => openTireEdit(id);
+    $('#t-del', sheet).onclick = async () => {
+      const msg = pos ? `"${t.name}" sidder på bilen nu. Slet dækket og al dets historik?` : `Slet "${t.name}" og al dets historik?`;
+      if (confirm(msg) && await mutate('deleteTire', { id })) afterTireChange();
+    };
   }
 
   function openTireEdit(id) {
@@ -508,18 +512,13 @@
       <form class="form">
         <label>Navn<input id="s-name" type="text" maxlength="40" value="${esc(t.name)}" required></label>
         <label>Type<select id="s-type">${typeOptions(t.type)}</select></label>
-        <label>Mærke / størrelse<input id="s-brand" type="text" maxlength="40" value="${esc(t.brand)}"></label>
         <label>Km på dækket før registrering<input id="s-start" type="number" inputmode="numeric" min="0" step="1" value="${t.startKm}"></label>
         <button class="btn primary" type="submit">Gem</button>
-        <button class="btn danger" type="button" id="s-del">Slet dæk og historik</button>
       </form>`);
     $('form', sheet).onsubmit = async (e) => {
       e.preventDefault();
-      const payload = { id, name: $('#s-name', sheet).value, type: $('#s-type', sheet).value, brand: $('#s-brand', sheet).value, startKm: parseFloat($('#s-start', sheet).value) || 0 };
+      const payload = { id, name: $('#s-name', sheet).value, type: $('#s-type', sheet).value, startKm: parseFloat($('#s-start', sheet).value) || 0 };
       if (await mutate('updateTire', payload)) afterTireChange();
-    };
-    $('#s-del', sheet).onclick = async () => {
-      if (confirm(`Slet "${t.name}" og al dens historik?`) && await mutate('deleteTire', { id })) afterTireChange();
     };
   }
 

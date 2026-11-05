@@ -10,7 +10,7 @@ const SCHEMA = {
   Odometer: ['id', 'date', 'car', 'km'],
   Cars: ['car_id', 'name', 'km_at_purchase', 'image', 'license_plate'],
   // Tire register: one row per physical tire, belonging to one car.
-  TireStock: ['id', 'car', 'name', 'type', 'brand', 'start_km'],
+  TireStock: ['id', 'car', 'name', 'type', 'start_km'],
   // Fitting log: one row each time a tire goes on a car; km_off is empty while it is still mounted.
   TireLog: ['id', 'tire', 'position', 'date_on', 'km_on', 'date_off', 'km_off'],
 };
@@ -197,7 +197,7 @@ function getAll() {
   return {
     ok: true,
     cars: readSheet('Cars').map(function (c) { return { id: c.car_id, name: c.name, kmAtPurchase: num(c.km_at_purchase), image: c.image, licensePlate: String(c.license_plate || '') }; }),
-    tires: readSheet('TireStock').map(function (t) { return { id: String(t.id), car: t.car, name: String(t.name), type: t.type, brand: String(t.brand || ''), startKm: num(t.start_km) }; }),
+    tires: readSheet('TireStock').map(function (t) { return { id: String(t.id), car: t.car, name: String(t.name), type: t.type, startKm: num(t.start_km) }; }),
     fittings: readSheet('TireLog').map(function (f) {
       return { id: String(f.id), tire: String(f.tire), pos: String(f.position), dateOn: String(f.date_on || ''), kmOn: num(f.km_on), dateOff: String(f.date_off || ''), kmOff: f.km_off === '' ? null : num(f.km_off) };
     }),
@@ -313,7 +313,7 @@ const HANDLERS = {
     for (let i = 1; i <= count; i++) {
       appendRecord('TireStock', {
         id: Utilities.getUuid(), car: r.car, name: count > 1 ? values.name + ' ' + i : values.name,
-        type: values.type, brand: values.brand, start_km: values.start_km,
+        type: values.type, start_km: values.start_km,
       });
     }
   },
@@ -338,7 +338,7 @@ const HANDLERS = {
     const label = { summer: 'Sommer', winter: 'Vinter', all: 'Helår' }[r.type];
     TIRE_POSITIONS.forEach(function (pos, i) {
       const id = Utilities.getUuid();
-      appendRecord('TireStock', { id: id, car: r.car, name: label + ' ' + (i + 1), type: r.type, brand: String(r.brand || '').slice(0, 40), start_km: 0 });
+      appendRecord('TireStock', { id: id, car: r.car, name: label + ' ' + (i + 1), type: r.type, start_km: 0 });
       appendRecord('TireLog', { id: Utilities.getUuid(), tire: id, position: pos, date_on: r.date || '', km_on: r.km, date_off: '', km_off: '' });
     });
   },
@@ -403,7 +403,7 @@ function tireValues(r) {
   if (TIRE_TYPES.indexOf(r.type) < 0) fail('Ugyldig dæktype');
   const startKm = r.startKm === undefined ? 0 : r.startKm;
   checkNumber(startKm, 'km på dækket', 0);
-  return { name: name, type: r.type, brand: String(r.brand || '').trim().slice(0, 40), start_km: startKm };
+  return { name: name, type: r.type, start_km: startKm };
 }
 
 // Fittings that are still mounted (km_off empty), each tagged with its tire's car.
