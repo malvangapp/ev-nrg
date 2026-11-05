@@ -31,6 +31,12 @@ Fanen `Charges` har kolonnen `non_home` (afkrydsning). Marker rækker hvor bilen
 (eller slå "Ladet ude" til i formularen). På Bildetaljer kan du slå "Inkl. ladning ude" til/fra.
 Efter en opdatering af `Code.gs`: kør `setup` igen og udgiv en **ny version** under Deploy → Manage deployments.
 
+## Nummerplade og dæk
+- `Cars` har kolonnen `license_plate` (rettes ved at trykke på pladen på Bildetaljer).
+- Fanen `Tires` (oprettes automatisk) har en række pr. dæk: `position` (FL/FR/RL/RR), `date` og `km` (kilometerstand ved skift).
+  På Bildetaljer viser sektionen "Dæk" km brugt = seneste km-stand minus km ved skift. Brug "Skift dæk" til at skifte ét eller flere dæk.
+- Opdater `Code.gs` og udgiv en **ny version** (Deploy → Manage deployments) for at få det med.
+
 ## Billigst (billigste ladetidspunkt)
 Fanen henter timepriser for DK2 fra [elprisenligenu.dk](https://www.elprisenligenu.dk/elpris-api) og finder den billigste
 sammenhængende ladeblok, der er færdig inden "Klar kl.". Priserne er uden afgifter og moms, så appen lægger OK-tillæg,

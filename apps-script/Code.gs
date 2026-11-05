@@ -8,13 +8,15 @@
 const SCHEMA = {
   Charges: ['id', 'date', 'car', 'kwh', 'price_dkk', 'created', 'updated', 'non_home'],
   Odometer: ['id', 'date', 'car', 'km'],
-  Cars: ['car_id', 'name', 'km_at_purchase', 'image'],
+  Cars: ['car_id', 'name', 'km_at_purchase', 'image', 'license_plate'],
+  Tires: ['id', 'car', 'position', 'date', 'km'], // one row per tire fitted; position FL/FR/RL/RR
 };
+const TIRE_POSITIONS = ['FL', 'FR', 'RL', 'RR'];
 // Header spellings accepted in addition to the schema name.
 const ALIASES = { non_home: ['ude', 'udehjemme', 'ikkehjemme', 'vaekhjemme', 'away', 'public'] };
 // A row only counts as data when this column has a value.
-const KEY_COLUMN = { Charges: 'date', Odometer: 'date', Cars: 'car_id' };
-const TEXT_COLUMNS = { Charges: ['date', 'created', 'updated'], Odometer: ['date'] };
+const KEY_COLUMN = { Charges: 'date', Odometer: 'date', Cars: 'car_id', Tires: 'date' };
+const TEXT_COLUMNS = { Charges: ['date', 'created', 'updated'], Odometer: ['date'], Tires: ['date'] };
 const TOKEN_DAYS = 180;
 
 function setup() {
@@ -51,7 +53,7 @@ function setup() {
 }
 
 function doGet() {
-  return json({ ok: true, name: 'EV-NRG', version: 3 });
+  return json({ ok: true, name: 'EV-NRG', version: 4 });
 }
 
 function doPost(e) {
@@ -113,9 +115,18 @@ function norm(s) {
   return String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+// Returns the tab; a tab added in a newer version (e.g. Tires) is created on first use.
 function sheetOf(name) {
-  const sheet = SpreadsheetApp.getActive().getSheetByName(name);
-  if (!sheet) fail('Fanen "' + name + '" findes ikke. Kør setup igen.');
+  const ss = SpreadsheetApp.getActive();
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    sheet.getRange(1, 1, 1, SCHEMA[name].length).setValues([SCHEMA[name]]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    (TEXT_COLUMNS[name] || []).forEach(function (col) {
+      sheet.getRange(2, SCHEMA[name].indexOf(col) + 1, Math.max(sheet.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+    });
+  }
   return sheet;
 }
 
@@ -176,10 +187,12 @@ function isTrue(v) {
 function getAll() {
   healIds('Charges');
   healIds('Odometer');
+  healIds('Tires');
   const num = function (v) { return Number(v) || 0; };
   return {
     ok: true,
-    cars: readSheet('Cars').map(function (c) { return { id: c.car_id, name: c.name, kmAtPurchase: num(c.km_at_purchase), image: c.image }; }),
+    cars: readSheet('Cars').map(function (c) { return { id: c.car_id, name: c.name, kmAtPurchase: num(c.km_at_purchase), image: c.image, licensePlate: String(c.license_plate || '') }; }),
+    tires: readSheet('Tires').map(function (t) { return { id: String(t.id), car: t.car, pos: String(t.position), date: String(t.date), km: num(t.km) }; }),
     charges: readSheet('Charges').map(function (c) { return { id: String(c.id), date: String(c.date), car: c.car, kwh: num(c.kwh), price: num(c.price_dkk), nonHome: isTrue(c.non_home) }; }),
     odometer: readSheet('Odometer').map(function (o) { return { id: String(o.id), date: String(o.date), car: o.car, km: num(o.km) }; }),
   };
@@ -273,7 +286,34 @@ const HANDLERS = {
     t.sheet.deleteRow(t.row);
   },
   updateCar: function (r) {
-    checkNumber(r.kmAtPurchase, 'km ved køb', 0);
-    setFields(findRow('Cars', r.id), { km_at_purchase: r.kmAtPurchase });
+    const values = {};
+    if (r.kmAtPurchase !== undefined) {
+      checkNumber(r.kmAtPurchase, 'km ved køb', 0);
+      values.km_at_purchase = r.kmAtPurchase;
+    }
+    if (r.licensePlate !== undefined) {
+      if (typeof r.licensePlate !== 'string' || r.licensePlate.length > 12) fail('Ugyldig nummerplade');
+      values.license_plate = r.licensePlate.trim().toUpperCase();
+    }
+    setFields(findRow('Cars', r.id), values);
+  },
+  addTires: function (r) {
+    carExists(r.car);
+    checkDate(r.date);
+    checkNumber(r.km, 'km-stand', 0);
+    if (!Array.isArray(r.positions) || !r.positions.length) fail('Vælg mindst ét dæk');
+    r.positions.forEach(function (p) {
+      if (TIRE_POSITIONS.indexOf(p) < 0) fail('Ugyldig dækposition');
+      appendRecord('Tires', { id: Utilities.getUuid(), car: r.car, position: p, date: r.date, km: r.km });
+    });
+  },
+  updateTire: function (r) {
+    checkDate(r.date);
+    checkNumber(r.km, 'km-stand', 0);
+    setFields(findRow('Tires', r.id), { date: r.date, km: r.km });
+  },
+  deleteTire: function (r) {
+    const t = findRow('Tires', r.id);
+    t.sheet.deleteRow(t.row);
   },
 };

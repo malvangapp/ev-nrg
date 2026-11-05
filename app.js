@@ -11,6 +11,7 @@
     filter: 'all',
     place: 'all', // Data list: 'all' | 'home' | 'away'
     collapsed: new Set(), // Data list: months folded shut
+    tiresOpen: false, // Bildetaljer: tire section expanded
     editing: null, // charge id being edited
     includeAway: true, // Bildetaljer: include charges made away from home
   };
@@ -33,6 +34,7 @@
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   const fmtMonth = (key) => cap(new Date(+key.slice(0, 4), +key.slice(5, 7) - 1, 1).toLocaleDateString('da-DK', { month: 'long', year: 'numeric' }));
   const currentMonth = () => today().slice(0, 7);
+  const TIRE_LABEL = { FL: 'Forrest venstre', FR: 'Forrest højre', RL: 'Bagerst venstre', RR: 'Bagerst højre' };
   const carName = (id) => (state.data.cars.find((c) => c.id === id) || {}).name || id;
   const pageCar = (i) => (i < 2 ? state.data.cars[i] : null);
 
@@ -63,7 +65,7 @@
   }
 
   function setData(res) {
-    state.data = { cars: res.cars, charges: res.charges, odometer: res.odometer };
+    state.data = { cars: res.cars, charges: res.charges, odometer: res.odometer, tires: res.tires || [] };
     Api.setCache(state.data);
     if (!state.detailCar) state.detailCar = state.data.cars[0].id;
     renderAll();
@@ -230,9 +232,24 @@
     const shown = Calc.totals(charges, car.id, null, state.includeAway ? 'all' : 'home');
     const home = Calc.totals(charges, car.id, null, 'home');
     const away = Calc.totals(charges, car.id, null, 'away');
+    const cur = Calc.currentTires(state.data.tires, car.id);
+    const have = Calc.TIRE_POS.filter((p) => cur[p]);
+    const usedKm = have.map((p) => Calc.tireKmUsed(cur[p], s.latest)).filter((v) => v != null);
+    const tireSummary = !have.length ? 'Ikke registreret'
+      : have.length < 4 ? `${have.length} af 4 registreret`
+        : !usedKm.length ? '4 dæk registreret'
+          : Math.min(...usedKm) === Math.max(...usedKm) ? `${f0.format(usedKm[0])} km brugt`
+            : `${f0.format(Math.min(...usedKm))}–${f0.format(Math.max(...usedKm))} km brugt`;
+    const tireRows = Calc.TIRE_POS.map((p) => {
+      const t = cur[p];
+      const used = t ? Calc.tireKmUsed(t, s.latest) : null;
+      return `<button class="row" data-tire="${t ? esc(t.id) : ''}" data-pos="${p}"><span class="k">${TIRE_LABEL[p]}</span><span class="v">${t
+        ? `${used == null ? '–' : `${f0.format(used)} km`} ›<small>${esc(fmtDate(t.date))} · ved ${f0.format(t.km)} km</small>`
+        : 'Ikke registreret ›'}</span></button>`;
+    }).join('');
     const readings = odometer.filter((o) => o.car === car.id).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.km - a.km));
     return `<div class="dpage" data-car="${esc(car.id)}">
-      <div class="head"><h1>${esc(car.name)}</h1></div>
+      <div class="head"><h1>${esc(car.name)}</h1><button class="plate ${car.licensePlate ? '' : 'empty'}" data-plate>${esc(car.licensePlate || '+ Nummerplade')}</button></div>
       <div class="hero"><img src="${esc(car.image)}" alt=""></div>
       <div class="big">
         <div class="value">${s.per100 == null ? '–' : f1.format(s.per100)} <span class="unit">kWh / 100 km</span></div>
@@ -254,6 +271,10 @@
         <div class="row"><span class="k">Seneste km-stand</span><span class="v">${s.latest ? `${f0.format(s.latest.km)} km<small>${esc(fmtDate(s.latest.date))}</small>` : '–'}</span></div>
         <div class="row"><span class="k">Kørt km</span><span class="v">${s.kmDriven == null ? '–' : `${f0.format(s.kmDriven)} km`}</span></div>
       </div>
+      <div class="card">
+        <button class="row" data-tires-toggle aria-expanded="${state.tiresOpen}"><span class="k">Dæk</span><span class="v">${esc(tireSummary)} ${state.tiresOpen ? '▾' : '▸'}</span></button>
+        ${state.tiresOpen ? `${tireRows}<div class="row"><button class="link" data-change-tires>+ Skift dæk</button></div>` : ''}
+      </div>
       <div class="sec-head"><h2>Km-stande</h2><button class="link" data-add-km>+ Tilføj km-stand</button></div>
       ${readings.length
         ? `<div class="card">${readings.map((o) => `<button class="row" data-km="${esc(o.id)}"><span class="k">${esc(fmtDate(o.date))}</span><span class="v">${f0.format(o.km)} km ›</span></button>`).join('')}</div>`
@@ -265,9 +286,10 @@
 
   function renderDetail() {
     const pager = $('#detail');
-    const tops = [...pager.querySelectorAll('.dpage')].map((p) => p.scrollTop); // keep vertical position across re-renders
+    const active = pager.querySelector(`.dpage[data-car="${state.detailCar}"]`);
+    const top = active ? active.scrollTop : 0; // keep the vertical position across re-renders, shared by both cars
     pager.innerHTML = state.data.cars.map(detailPage).join('');
-    pager.querySelectorAll('.dpage').forEach((p, i) => { p.scrollTop = tops[i] || 0; });
+    pager.querySelectorAll('.dpage').forEach((p) => { p.scrollTop = top; });
     $('#detail-dots').innerHTML = state.data.cars.map((c) => `<i class="${c.id === state.detailCar ? 'on' : ''}"></i>`).join('');
     if (state.view === 'detail') pager.scrollLeft = detailIndex() * pager.clientWidth;
   }
@@ -282,6 +304,14 @@
     }
   }, { passive: true });
 
+  // Both car pages share one vertical scroll level; only the visible page drives it
+  // (a shorter page would otherwise clamp the position back and forth).
+  $('#detail').addEventListener('scroll', (e) => {
+    const page = e.target;
+    if (!page.classList || !page.classList.contains('dpage') || page.dataset.car !== state.detailCar) return;
+    document.querySelectorAll('#detail .dpage').forEach((p) => { if (p !== page && p.scrollTop !== page.scrollTop) p.scrollTop = page.scrollTop; });
+  }, { capture: true, passive: true });
+
   $('#detail').addEventListener('change', (e) => {
     if (!e.target.matches('[data-away]')) return;
     state.includeAway = e.target.checked;
@@ -293,10 +323,75 @@
     const page = e.target.closest('.dpage');
     if (page) state.detailCar = page.dataset.car;
     if (e.target.closest('[data-purchase]')) return openPurchaseSheet();
+    if (e.target.closest('[data-plate]')) return openPlateSheet();
+    if (e.target.closest('[data-tires-toggle]')) { state.tiresOpen = !state.tiresOpen; return renderDetail(); }
+    if (e.target.closest('[data-change-tires]')) return openTireChange(Calc.TIRE_POS);
+    const tire = e.target.closest('[data-tire]');
+    if (tire) return tire.dataset.tire ? openTireEdit(tire.dataset.tire) : openTireChange([tire.dataset.pos]);
     if (e.target.closest('[data-add-km]')) return openOdometerSheet(null);
     const km = e.target.closest('[data-km]');
     if (km) openOdometerSheet(km.dataset.km);
   });
+
+  function openPlateSheet() {
+    const car = state.data.cars.find((c) => c.id === state.detailCar);
+    const sheet = openSheet(`<h2>Nummerplade</h2>
+      <form class="form"><label>Nummerplade<input id="s-plate" type="text" maxlength="12" autocapitalize="characters" autocomplete="off" value="${esc(car.licensePlate || '')}" placeholder="AB 12 345"></label>
+      <button class="btn primary" type="submit">Gem</button></form>`);
+    $('form', sheet).onsubmit = async (e) => {
+      e.preventDefault();
+      if (await mutate('updateCar', { id: car.id, licensePlate: $('#s-plate', sheet).value })) closeSheet();
+    };
+  }
+
+  function openTireChange(positions) {
+    const carId = state.detailCar;
+    const latest = Calc.latestReading(state.data.odometer, carId);
+    const sheet = openSheet(`<h2>Skift dæk</h2>
+      <form class="form">
+        <div class="chips">${Calc.TIRE_POS.map((p) => `<button type="button" class="chip ${positions.includes(p) ? 'on' : ''}" data-chip="${p}">${TIRE_LABEL[p]}</button>`).join('')}</div>
+        <label>Dato<input id="s-date" type="date" value="${today()}" required></label>
+        <label>Km-stand ved skift<input id="s-km" type="number" inputmode="numeric" min="0" step="1" value="${latest ? latest.km : ''}" placeholder="0" required></label>
+        <p class="error" id="s-error"></p>
+        <button class="btn primary" type="submit">Gem</button>
+      </form>`);
+    sheet.onclick = (e) => {
+      const chip = e.target.closest('[data-chip]');
+      if (chip) chip.classList.toggle('on');
+    };
+    $('form', sheet).onsubmit = async (e) => {
+      e.preventDefault();
+      const picked = [...sheet.querySelectorAll('.chip.on')].map((c) => c.dataset.chip);
+      if (!picked.length) { $('#s-error', sheet).textContent = 'Vælg mindst ét dæk'; return; }
+      const km = parseFloat($('#s-km', sheet).value);
+      if (!(km >= 0)) return;
+      if (await mutate('addTires', { car: carId, positions: picked, date: $('#s-date', sheet).value, km })) {
+        state.tiresOpen = true;
+        renderDetail();
+        closeSheet();
+      }
+    };
+  }
+
+  function openTireEdit(id) {
+    const t = state.data.tires.find((x) => x.id === id);
+    const sheet = openSheet(`<h2>${TIRE_LABEL[t.pos]}</h2>
+      <form class="form">
+        <label>Dato for skift<input id="s-date" type="date" value="${esc(t.date)}" required></label>
+        <label>Km-stand ved skift<input id="s-km" type="number" inputmode="numeric" min="0" step="1" value="${t.km}" required></label>
+        <button class="btn primary" type="submit">Gem</button>
+        <button class="btn danger" type="button" id="s-del">Slet registrering</button>
+      </form>`);
+    $('form', sheet).onsubmit = async (e) => {
+      e.preventDefault();
+      const km = parseFloat($('#s-km', sheet).value);
+      if (!(km >= 0)) return;
+      if (await mutate('updateTire', { id, date: $('#s-date', sheet).value, km })) closeSheet();
+    };
+    $('#s-del', sheet).onclick = async () => {
+      if (confirm('Slet denne dækregistrering?') && await mutate('deleteTire', { id })) closeSheet();
+    };
+  }
 
   function openPurchaseSheet() {
     const car = state.data.cars.find((c) => c.id === state.detailCar);
@@ -580,7 +675,7 @@
     try {
       const fresh = await Api.call('getAll');
       setData(fresh);
-      if (!Api.demo && fresh.charges.length && !('nonHome' in fresh.charges[0])) {
+      if (!Api.demo && (!('tires' in fresh) || (fresh.charges.length && !('nonHome' in fresh.charges[0])))) {
         toast('Backend er ikke opdateret: udgiv en ny version i Apps Script');
       }
     } catch (e) {

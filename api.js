@@ -46,8 +46,14 @@ const Api = (() => {
       }
       demoData = {
         cars: [
-          { id: 'elroq', name: 'Skoda Elroq', kmAtPurchase: 1200, image: 'assets/cars/elroq.png' },
-          { id: 'id3', name: 'VW ID.3', kmAtPurchase: 15000, image: 'assets/cars/id3.png' },
+          { id: 'elroq', name: 'Skoda Elroq', kmAtPurchase: 1200, image: 'assets/cars/elroq.png', licensePlate: 'AB 12 345' },
+          { id: 'id3', name: 'VW ID.3', kmAtPurchase: 15000, image: 'assets/cars/id3.png', licensePlate: '' },
+        ],
+        tires: [
+          { id: 't1', car: 'elroq', pos: 'FL', date: '2026-03-12', km: 3000 },
+          { id: 't2', car: 'elroq', pos: 'FR', date: '2026-03-12', km: 3000 },
+          { id: 't3', car: 'elroq', pos: 'RL', date: '2026-03-12', km: 3000 },
+          { id: 't4', car: 'elroq', pos: 'RR', date: '2026-06-01', km: 4200 },
         ],
         charges: ch,
         odometer: [
@@ -67,7 +73,16 @@ const Api = (() => {
       case 'addOdometer': d.odometer.push({ id: uid(), date: p.date, car: p.car, km: p.km }); break;
       case 'updateOdometer': upd('odometer'); break;
       case 'deleteOdometer': del('odometer'); break;
-      case 'updateCar': d.cars = d.cars.map((c) => (c.id === p.id ? { ...c, kmAtPurchase: p.kmAtPurchase } : c)); break;
+      case 'updateCar':
+        d.cars = d.cars.map((c) => (c.id !== p.id ? c : {
+          ...c,
+          ...(p.kmAtPurchase !== undefined && { kmAtPurchase: p.kmAtPurchase }),
+          ...(p.licensePlate !== undefined && { licensePlate: p.licensePlate.trim().toUpperCase() }),
+        }));
+        break;
+      case 'addTires': p.positions.forEach((pos) => d.tires.push({ id: uid(), car: p.car, pos, date: p.date, km: p.km })); break;
+      case 'updateTire': upd('tires'); break;
+      case 'deleteTire': del('tires'); break;
     }
     return Promise.resolve({ ok: true, ...JSON.parse(JSON.stringify(d)) });
   }

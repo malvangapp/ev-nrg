@@ -28,6 +28,21 @@ const Calc = (() => {
     return [...set].sort().reverse();
   }
 
+  const TIRE_POS = ['FL', 'FR', 'RL', 'RR']; // front left/right, rear left/right
+
+  // Latest fitting per position for one car: { FL: record, ... }
+  function currentTires(tires, carId) {
+    const out = {};
+    for (const t of tires.filter((x) => x.car === carId)) {
+      const c = out[t.pos];
+      if (!c || t.date > c.date || (t.date === c.date && t.km > c.km)) out[t.pos] = t;
+    }
+    return out;
+  }
+
+  // Km driven on a tire since it was fitted, from the car's latest odometer reading.
+  const tireKmUsed = (tire, latest) => (latest ? Math.max(0, latest.km - tire.km) : null);
+
   function latestReading(odometer, car) {
     const list = odometer.filter((o) => o.car === car);
     if (!list.length) return null;
@@ -47,7 +62,7 @@ const Calc = (() => {
     return stats;
   }
 
-  return { monthOf, totals, months, years, latestReading, carStats };
+  return { monthOf, totals, months, years, TIRE_POS, currentTires, tireKmUsed, latestReading, carStats };
 })();
 
 if (typeof module !== 'undefined') module.exports = Calc;

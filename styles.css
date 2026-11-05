@@ -117,6 +117,13 @@ input.toggle:checked::after { transform: translateX(20px); }
 .card.pad { padding: 14px 16px; }
 .tag { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 0 5px; margin-left: 6px; vertical-align: 2px; }
 
+/* ---- car detail: plate and tires ---- */
+.plate { background: #fff; border: 1.5px solid #1c1f23; border-left: 8px solid #2457a6; border-radius: 6px; padding: 3px 10px; font-size: 15px; font-weight: 700; letter-spacing: 1.5px; cursor: pointer; white-space: nowrap; }
+.plate.empty { border: 1px dashed var(--border); border-left-width: 1px; color: var(--accent); font-weight: 500; letter-spacing: 0; font-size: 13px; }
+.chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.chip { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px 8px; font-size: 15px; color: var(--muted); cursor: pointer; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
 /* ---- planner ---- */
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .notice { background: #fff8e6; border: 1px solid #f0d9a0; color: #7a5b00; border-radius: 14px; padding: 10px 14px; font-size: 13px; margin: 0 0 14px; }
