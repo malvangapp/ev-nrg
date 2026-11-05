@@ -107,6 +107,7 @@
     const b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.view === 'detail' && state.page < 2) state.detailCar = state.data.cars[state.page].id;
+    if (b.dataset.view === 'detail' && state.view !== 'detail') state.tiresOpen = state.stockOpen = false; // start folded each visit
     closeSheet();
     show(b.dataset.view);
     renderAll();
@@ -332,7 +333,7 @@
     if (page) state.detailCar = page.dataset.car;
     if (e.target.closest('[data-purchase]')) return openPurchaseSheet();
     if (e.target.closest('[data-plate]')) return openPlateSheet();
-    if (e.target.closest('[data-tires-toggle]')) { state.tiresOpen = !state.tiresOpen; return renderDetail(); }
+    if (e.target.closest('[data-tires-toggle]')) { state.tiresOpen = !state.tiresOpen; state.stockOpen = false; return renderDetail(); }
     if (e.target.closest('[data-stock-toggle]')) { state.stockOpen = !state.stockOpen; return renderDetail(); }
     if (e.target.closest('[data-tire-init]')) return openTireInit();
     if (e.target.closest('[data-tire-swap]')) return openTireChange(Calc.TIRE_POS);
