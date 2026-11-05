@@ -9,14 +9,18 @@ const SCHEMA = {
   Charges: ['id', 'date', 'car', 'kwh', 'price_dkk', 'created', 'updated', 'non_home'],
   Odometer: ['id', 'date', 'car', 'km'],
   Cars: ['car_id', 'name', 'km_at_purchase', 'image', 'license_plate'],
-  Tires: ['id', 'car', 'position', 'date', 'km'], // one row per tire fitted; position FL/FR/RL/RR
+  // Tire register: one row per physical tire, belonging to one car.
+  TireStock: ['id', 'car', 'name', 'type', 'brand', 'start_km'],
+  // Fitting log: one row each time a tire goes on a car; km_off is empty while it is still mounted.
+  TireLog: ['id', 'tire', 'position', 'date_on', 'km_on', 'date_off', 'km_off'],
 };
-const TIRE_POSITIONS = ['FL', 'FR', 'RL', 'RR'];
+const TIRE_POSITIONS = ['FL', 'FR', 'RL', 'RR']; // front left/right, rear left/right
+const TIRE_TYPES = ['summer', 'winter', 'all'];
 // Header spellings accepted in addition to the schema name.
 const ALIASES = { non_home: ['ude', 'udehjemme', 'ikkehjemme', 'vaekhjemme', 'away', 'public'] };
 // A row only counts as data when this column has a value.
-const KEY_COLUMN = { Charges: 'date', Odometer: 'date', Cars: 'car_id', Tires: 'date' };
-const TEXT_COLUMNS = { Charges: ['date', 'created', 'updated'], Odometer: ['date'], Tires: ['date'] };
+const KEY_COLUMN = { Charges: 'date', Odometer: 'date', Cars: 'car_id', TireStock: 'name', TireLog: 'tire' };
+const TEXT_COLUMNS = { Charges: ['date', 'created', 'updated'], Odometer: ['date'], TireLog: ['date_on', 'date_off'] };
 const TOKEN_DAYS = 180;
 
 function setup() {
@@ -53,7 +57,7 @@ function setup() {
 }
 
 function doGet() {
-  return json({ ok: true, name: 'EV-NRG', version: 4 });
+  return json({ ok: true, name: 'EV-NRG', version: 5 });
 }
 
 function doPost(e) {
@@ -187,12 +191,16 @@ function isTrue(v) {
 function getAll() {
   healIds('Charges');
   healIds('Odometer');
-  healIds('Tires');
+  healIds('TireStock');
+  healIds('TireLog');
   const num = function (v) { return Number(v) || 0; };
   return {
     ok: true,
     cars: readSheet('Cars').map(function (c) { return { id: c.car_id, name: c.name, kmAtPurchase: num(c.km_at_purchase), image: c.image, licensePlate: String(c.license_plate || '') }; }),
-    tires: readSheet('Tires').map(function (t) { return { id: String(t.id), car: t.car, pos: String(t.position), date: String(t.date), km: num(t.km) }; }),
+    tires: readSheet('TireStock').map(function (t) { return { id: String(t.id), car: t.car, name: String(t.name), type: t.type, brand: String(t.brand || ''), startKm: num(t.start_km) }; }),
+    fittings: readSheet('TireLog').map(function (f) {
+      return { id: String(f.id), tire: String(f.tire), pos: String(f.position), dateOn: String(f.date_on || ''), kmOn: num(f.km_on), dateOff: String(f.date_off || ''), kmOff: f.km_off === '' ? null : num(f.km_off) };
+    }),
     charges: readSheet('Charges').map(function (c) { return { id: String(c.id), date: String(c.date), car: c.car, kwh: num(c.kwh), price: num(c.price_dkk), nonHome: isTrue(c.non_home) }; }),
     odometer: readSheet('Odometer').map(function (o) { return { id: String(o.id), date: String(o.date), car: o.car, km: num(o.km) }; }),
   };
@@ -297,23 +305,121 @@ const HANDLERS = {
     }
     setFields(findRow('Cars', r.id), values);
   },
-  addTires: function (r) {
+  addTire: function (r) {
+    carExists(r.car);
+    const values = tireValues(r);
+    const count = r.count === undefined ? 1 : r.count;
+    if (typeof count !== 'number' || count < 1 || count > 8 || count % 1) fail('Ugyldigt antal');
+    for (let i = 1; i <= count; i++) {
+      appendRecord('TireStock', {
+        id: Utilities.getUuid(), car: r.car, name: count > 1 ? values.name + ' ' + i : values.name,
+        type: values.type, brand: values.brand, start_km: values.start_km,
+      });
+    }
+  },
+  updateTire: function (r) {
+    setFields(findRow('TireStock', r.id), tireValues(r));
+  },
+  deleteTire: function (r) {
+    // remove its fittings first (bottom-up so row numbers stay valid), then the tire itself
+    readSheet('TireLog').filter(function (f) { return String(f.tire) === String(r.id); })
+      .map(function (f) { return f._row; }).sort(function (a, b) { return b - a; })
+      .forEach(function (row) { sheetOf('TireLog').deleteRow(row); });
+    const t = findRow('TireStock', r.id);
+    t.sheet.deleteRow(t.row);
+  },
+  // Put the four tires that are on the car today into the register, fitted from the given km.
+  initTires: function (r) {
+    carExists(r.car);
+    if (readSheet('TireStock').some(function (t) { return t.car === r.car; })) fail('Der er allerede dæk registreret');
+    if (TIRE_TYPES.indexOf(r.type) < 0) fail('Ugyldig dæktype');
+    checkNumber(r.km, 'km-stand', 0);
+    if (r.date) checkDate(r.date);
+    const label = { summer: 'Sommer', winter: 'Vinter', all: 'Helår' }[r.type];
+    TIRE_POSITIONS.forEach(function (pos, i) {
+      const id = Utilities.getUuid();
+      appendRecord('TireStock', { id: id, car: r.car, name: label + ' ' + (i + 1), type: r.type, brand: String(r.brand || '').slice(0, 40), start_km: 0 });
+      appendRecord('TireLog', { id: Utilities.getUuid(), tire: id, position: pos, date_on: r.date || '', km_on: r.km, date_off: '', km_off: '' });
+    });
+  },
+  // assignments: [{ pos, tire }]. A tire already on that position is taken off (and goes to stock).
+  mountTires: function (r) {
+    carExists(r.car);
+    checkDate(r.date);
+    checkNumber(r.km, 'km-stand', 0);
+    if (!Array.isArray(r.assignments) || !r.assignments.length) fail('Vælg mindst ét dæk');
+    const stock = readSheet('TireStock');
+    const open = openFittings(stock);
+    const seenPos = {};
+    const seenTire = {};
+    r.assignments.forEach(function (a) {
+      if (TIRE_POSITIONS.indexOf(a.pos) < 0) fail('Ugyldig dækposition');
+      if (seenPos[a.pos] || seenTire[a.tire]) fail('Samme plads eller dæk er valgt to gange');
+      seenPos[a.pos] = seenTire[a.tire] = true;
+      const tire = stock.filter(function (t) { return String(t.id) === String(a.tire); })[0];
+      if (!tire || tire.car !== r.car) fail('Dækket hører ikke til denne bil');
+      if (open.some(function (f) { return String(f.tire) === String(a.tire); })) fail('Dækket "' + tire.name + '" er allerede monteret');
+    });
+    r.assignments.forEach(function (a) { closeAt(open, r.car, a.pos, r.date, r.km, stock); });
+    r.assignments.forEach(function (a) {
+      appendRecord('TireLog', { id: Utilities.getUuid(), tire: a.tire, position: a.pos, date_on: r.date, km_on: r.km, date_off: '', km_off: '' });
+    });
+  },
+  // Take the tires on these positions off the car (they go to stock).
+  unmountTires: function (r) {
     carExists(r.car);
     checkDate(r.date);
     checkNumber(r.km, 'km-stand', 0);
     if (!Array.isArray(r.positions) || !r.positions.length) fail('Vælg mindst ét dæk');
-    r.positions.forEach(function (p) {
-      if (TIRE_POSITIONS.indexOf(p) < 0) fail('Ugyldig dækposition');
-      appendRecord('Tires', { id: Utilities.getUuid(), car: r.car, position: p, date: r.date, km: r.km });
+    const stock = readSheet('TireStock');
+    const open = openFittings(stock);
+    r.positions.forEach(function (pos) {
+      if (TIRE_POSITIONS.indexOf(pos) < 0) fail('Ugyldig dækposition');
+      closeAt(open, r.car, pos, r.date, r.km, stock);
     });
   },
-  updateTire: function (r) {
-    checkDate(r.date);
-    checkNumber(r.km, 'km-stand', 0);
-    setFields(findRow('Tires', r.id), { date: r.date, km: r.km });
+  updateFitting: function (r) {
+    checkDate(r.dateOn);
+    checkNumber(r.kmOn, 'km-stand', 0);
+    const values = { date_on: r.dateOn, km_on: r.kmOn, date_off: '', km_off: '' };
+    if (r.kmOff !== null && r.kmOff !== undefined) {
+      checkDate(r.dateOff);
+      checkNumber(r.kmOff, 'km-stand', 0);
+      if (r.kmOff < r.kmOn) fail('Km-standen ved afmontering er lavere end ved montering');
+      values.date_off = r.dateOff;
+      values.km_off = r.kmOff;
+    }
+    setFields(findRow('TireLog', r.id), values);
   },
-  deleteTire: function (r) {
-    const t = findRow('Tires', r.id);
+  deleteFitting: function (r) {
+    const t = findRow('TireLog', r.id);
     t.sheet.deleteRow(t.row);
   },
 };
+
+function tireValues(r) {
+  const name = String(r.name || '').trim();
+  if (!name || name.length > 40) fail('Giv dækket et navn');
+  if (TIRE_TYPES.indexOf(r.type) < 0) fail('Ugyldig dæktype');
+  const startKm = r.startKm === undefined ? 0 : r.startKm;
+  checkNumber(startKm, 'km på dækket', 0);
+  return { name: name, type: r.type, brand: String(r.brand || '').trim().slice(0, 40), start_km: startKm };
+}
+
+// Fittings that are still mounted (km_off empty), each tagged with its tire's car.
+function openFittings(stock) {
+  const carOf = {};
+  stock.forEach(function (t) { carOf[String(t.id)] = t.car; });
+  return readSheet('TireLog')
+    .filter(function (f) { return f.km_off === ''; })
+    .map(function (f) { f.car = carOf[String(f.tire)]; return f; });
+}
+
+// Close the open fitting on one car position, if any.
+function closeAt(open, car, pos, date, km, stock) {
+  open.filter(function (f) { return f.car === car && f.position === pos; }).forEach(function (f) {
+    if (km < Number(f.km_on)) fail('Km-standen er lavere end da dækket blev monteret (' + f.km_on + ' km)');
+    if (f.date_on && date < f.date_on) fail('Datoen ligger før dækket blev monteret');
+    setFields({ sheet: sheetOf('TireLog'), row: f._row, map: columnMap(sheetOf('TireLog'), 'TireLog') }, { date_off: date, km_off: km });
+  });
+}

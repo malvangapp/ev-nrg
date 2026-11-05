@@ -49,12 +49,11 @@ const Api = (() => {
           { id: 'elroq', name: 'Skoda Elroq', kmAtPurchase: 1200, image: 'assets/cars/elroq.png', licensePlate: 'AB 12 345' },
           { id: 'id3', name: 'VW ID.3', kmAtPurchase: 15000, image: 'assets/cars/id3.png', licensePlate: '' },
         ],
-        tires: [
-          { id: 't1', car: 'elroq', pos: 'FL', date: '2026-03-12', km: 3000 },
-          { id: 't2', car: 'elroq', pos: 'FR', date: '2026-03-12', km: 3000 },
-          { id: 't3', car: 'elroq', pos: 'RL', date: '2026-03-12', km: 3000 },
-          { id: 't4', car: 'elroq', pos: 'RR', date: '2026-06-01', km: 4200 },
-        ],
+        // Elroq: four summer tires mounted, four winter tires in stock that already ran 2.300 km.
+        tires: [1, 2, 3, 4].map((n) => ({ id: 's' + n, car: 'elroq', name: 'Sommer ' + n, type: 'summer', brand: 'Michelin', startKm: 0 }))
+          .concat([1, 2, 3, 4].map((n) => ({ id: 'w' + n, car: 'elroq', name: 'Vinter ' + n, type: 'winter', brand: 'Nokian', startKm: 0 }))),
+        fittings: ['FL', 'FR', 'RL', 'RR'].map((pos, i) => ({ id: 'fs' + i, tire: 's' + (i + 1), pos, dateOn: '2026-04-02', kmOn: 3500, dateOff: '', kmOff: null }))
+          .concat(['FL', 'FR', 'RL', 'RR'].map((pos, i) => ({ id: 'fw' + i, tire: 'w' + (i + 1), pos, dateOn: '2025-11-15', kmOn: 1200, dateOff: '2026-04-02', kmOff: 3500 }))),
         charges: ch,
         odometer: [
           { id: 'o1', date: ch[0].date, car: 'elroq', km: 5400 },
@@ -80,9 +79,30 @@ const Api = (() => {
           ...(p.licensePlate !== undefined && { licensePlate: p.licensePlate.trim().toUpperCase() }),
         }));
         break;
-      case 'addTires': p.positions.forEach((pos) => d.tires.push({ id: uid(), car: p.car, pos, date: p.date, km: p.km })); break;
-      case 'updateTire': upd('tires'); break;
-      case 'deleteTire': del('tires'); break;
+      case 'addTire': for (let i = 1; i <= (p.count || 1); i++) d.tires.push({ id: uid(), car: p.car, name: p.count > 1 ? `${p.name} ${i}` : p.name, type: p.type, brand: p.brand || '', startKm: p.startKm || 0 }); break;
+      case 'updateTire': d.tires = d.tires.map((t) => (t.id === p.id ? { ...t, name: p.name, type: p.type, brand: p.brand || '', startKm: p.startKm || 0 } : t)); break;
+      case 'deleteTire': d.fittings = d.fittings.filter((f) => f.tire !== p.id); del('tires'); break;
+      case 'initTires': {
+        const label = { summer: 'Sommer', winter: 'Vinter', all: 'Helår' }[p.type];
+        ['FL', 'FR', 'RL', 'RR'].forEach((pos, i) => {
+          const id = uid();
+          d.tires.push({ id, car: p.car, name: `${label} ${i + 1}`, type: p.type, brand: p.brand || '', startKm: 0 });
+          d.fittings.push({ id: uid(), tire: id, pos, dateOn: p.date || '', kmOn: p.km, dateOff: '', kmOff: null });
+        });
+        break;
+      }
+      case 'mountTires':
+      case 'unmountTires': {
+        const carTire = (f) => (d.tires.find((t) => t.id === f.tire) || {}).car;
+        const positions = p.positions || p.assignments.map((a) => a.pos);
+        d.fittings.forEach((f) => {
+          if (f.kmOff == null && carTire(f) === p.car && positions.includes(f.pos)) { f.dateOff = p.date; f.kmOff = p.km; }
+        });
+        (p.assignments || []).forEach((a) => d.fittings.push({ id: uid(), tire: a.tire, pos: a.pos, dateOn: p.date, kmOn: p.km, dateOff: '', kmOff: null }));
+        break;
+      }
+      case 'updateFitting': d.fittings = d.fittings.map((f) => (f.id === p.id ? { ...f, dateOn: p.dateOn, kmOn: p.kmOn, dateOff: p.kmOff == null ? '' : p.dateOff, kmOff: p.kmOff == null ? null : p.kmOff } : f)); break;
+      case 'deleteFitting': d.fittings = d.fittings.filter((f) => f.id !== p.id); break;
     }
     return Promise.resolve({ ok: true, ...JSON.parse(JSON.stringify(d)) });
   }

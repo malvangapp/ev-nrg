@@ -33,8 +33,13 @@ Efter en opdatering af `Code.gs`: kør `setup` igen og udgiv en **ny version** u
 
 ## Nummerplade og dæk
 - `Cars` har kolonnen `license_plate` (rettes ved at trykke på pladen på Bildetaljer).
-- Fanen `Tires` (oprettes automatisk) har en række pr. dæk: `position` (FL/FR/RL/RR), `date` og `km` (kilometerstand ved skift).
-  På Bildetaljer viser sektionen "Dæk" km brugt = seneste km-stand minus km ved skift. Brug "Skift dæk" til at skifte ét eller flere dæk.
+- Dæk registreres enkeltvis og hører til én bil. To faner (oprettes automatisk):
+  - `TireStock`: dækregisteret (navn, type sommer/vinter/helår, mærke, `start_km` = km dækket allerede havde).
+  - `TireLog`: hver montering (dæk, position FL/FR/RL/RR, dato og km på og af). Tom `km_off` = sidder stadig på bilen.
+- Et dæks km = `start_km` + alle moneringer; en montering der stadig sidder på tæller op til bilens seneste km-stand.
+  Når du tilføjer en km-stand, opdateres dækkenes km altså af sig selv, og et dæk fortsætter hvor det slap når det monteres igen.
+- På Bildetaljer: "Skift dæk" vælger pladser (forrest, bagerst eller enkelte) og hvilke dæk fra lageret der skal på. "Nyt dæk" tilføjer til lageret.
+  Første gang bruges "Registrér nuværende dæk", som regner de fire dæk på bilen med fra købet.
 - Opdater `Code.gs` og udgiv en **ny version** (Deploy → Manage deployments) for at få det med.
 
 ## Billigst (billigste ladetidspunkt)

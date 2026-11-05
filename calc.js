@@ -30,18 +30,28 @@ const Calc = (() => {
 
   const TIRE_POS = ['FL', 'FR', 'RL', 'RR']; // front left/right, rear left/right
 
-  // Latest fitting per position for one car: { FL: record, ... }
-  function currentTires(tires, carId) {
-    const out = {};
-    for (const t of tires.filter((x) => x.car === carId)) {
-      const c = out[t.pos];
-      if (!c || t.date > c.date || (t.date === c.date && t.km > c.km)) out[t.pos] = t;
+  // Everything about one tire: total km (km it already had + every fitting, an open fitting running
+  // up to the car's latest odometer reading), the open fitting if it is mounted, and its history.
+  function tireInfo(tire, fittings, latestKm) {
+    const list = fittings
+      .filter((f) => f.tire === tire.id)
+      .sort((a, b) => (a.dateOn < b.dateOn ? 1 : a.dateOn > b.dateOn ? -1 : b.kmOn - a.kmOn));
+    let kmTotal = tire.startKm;
+    for (const f of list) {
+      const end = f.kmOff != null ? f.kmOff : Math.max(f.kmOn, latestKm != null ? latestKm : f.kmOn);
+      f.kmUsed = Math.max(0, end - f.kmOn);
+      kmTotal += f.kmUsed;
     }
-    return out;
+    return { tire, kmTotal, open: list.find((f) => f.kmOff == null) || null, list };
   }
 
-  // Km driven on a tire since it was fitted, from the car's latest odometer reading.
-  const tireKmUsed = (tire, latest) => (latest ? Math.max(0, latest.km - tire.km) : null);
+  // Mounted tires by position plus the stock (not mounted), for one car.
+  function carTires(carId, tires, fittings, latestKm) {
+    const infos = tires.filter((t) => t.car === carId).map((t) => tireInfo(t, fittings, latestKm));
+    const mounted = {};
+    for (const i of infos) if (i.open) mounted[i.open.pos] = i;
+    return { all: infos, mounted, stock: infos.filter((i) => !i.open).sort((a, b) => (a.tire.name < b.tire.name ? -1 : 1)) };
+  }
 
   function latestReading(odometer, car) {
     const list = odometer.filter((o) => o.car === car);
@@ -62,7 +72,7 @@ const Calc = (() => {
     return stats;
   }
 
-  return { monthOf, totals, months, years, TIRE_POS, currentTires, tireKmUsed, latestReading, carStats };
+  return { monthOf, totals, months, years, TIRE_POS, tireInfo, carTires, latestReading, carStats };
 })();
 
 if (typeof module !== 'undefined') module.exports = Calc;
