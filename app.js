@@ -38,22 +38,12 @@
   const TIRE_LABEL = { FL: 'Forrest venstre', FR: 'Forrest højre', RL: 'Bagerst venstre', RR: 'Bagerst højre' };
   const TYPE_LABEL = { summer: 'Sommer', winter: 'Vinter', all: 'Helår' };
   const typeOptions = (sel) => Object.entries(TYPE_LABEL).map(([k, l]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${l}</option>`).join('');
-  // Danish plate: blue EU strip (12 stars in a circle, "DK") and AB 12 345 grouped when it has that shape.
-  const star = (cx, cy, r1, r2) => Array.from({ length: 10 }, (_, i) => {
-    const a = (-90 + i * 36) * Math.PI / 180;
-    const r = i % 2 ? r2 : r1;
-    return `${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`;
-  }).join(' ');
-  const EU_STRIP = `<svg class="eu" viewBox="0 0 24 36" aria-hidden="true"><rect width="24" height="36" fill="#003399"/>${
-    Array.from({ length: 12 }, (_, i) => {
-      const a = (i * 30 - 90) * Math.PI / 180;
-      return `<polygon points="${star(12 + 7 * Math.cos(a), 13 + 7 * Math.sin(a), 1.7, 0.7)}" fill="#ffcc00"/>`;
-    }).join('')}<text x="12" y="31" font-size="8" font-weight="700" fill="#fff" text-anchor="middle" font-family="Arial,sans-serif">DK</text></svg>`;
+  // Plate shown as AB 12 345 (letters, two digits, three digits) when it has that shape, otherwise as typed.
   function plateButton(plate) {
     if (!plate) return '<button class="plate empty" data-plate>+ Nummerplade</button>';
     const m = plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase().match(/^([A-Z]{2})(\d{2})(\d{3})$/);
     const chars = m ? `<span>${m[1]}</span><span>${m[2]}</span><span>${m[3]}</span>` : `<span>${esc(plate.toUpperCase())}</span>`;
-    return `<button class="plate" data-plate aria-label="Nummerplade ${esc(plate)}">${EU_STRIP}<span class="chars">${chars}</span></button>`;
+    return `<button class="plate" data-plate aria-label="Nummerplade ${esc(plate)}">${chars}</button>`;
   }
 
   const carName = (id) => (state.data.cars.find((c) => c.id === id) || {}).name || id;
