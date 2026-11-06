@@ -123,6 +123,7 @@ input.toggle:checked::after { transform: translateX(20px); }
 .sub { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; padding: 12px 0 0; }
 .row.actions { justify-content: flex-start; gap: 24px; }
 .row .k small { display: block; color: var(--muted); font-size: 13px; font-weight: 400; margin-top: 1px; }
+.row .v.vin { font-size: 13px; letter-spacing: 0.5px; word-break: break-all; }
 .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .chip { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px 8px; font-size: 15px; color: var(--muted); cursor: pointer; }
 .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }

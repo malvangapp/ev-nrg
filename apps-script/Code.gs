@@ -8,7 +8,7 @@
 const SCHEMA = {
   Charges: ['id', 'date', 'car', 'kwh', 'price_dkk', 'created', 'updated', 'non_home'],
   Odometer: ['id', 'date', 'car', 'km'],
-  Cars: ['car_id', 'name', 'km_at_purchase', 'image', 'license_plate'],
+  Cars: ['car_id', 'name', 'km_at_purchase', 'image', 'license_plate', 'vin'],
   // Tire register: one row per physical tire, belonging to one car.
   TireStock: ['id', 'car', 'name', 'type', 'start_km'],
   // Fitting log: one row each time a tire goes on a car; km_off is empty while it is still mounted.
@@ -57,7 +57,7 @@ function setup() {
 }
 
 function doGet() {
-  return json({ ok: true, name: 'EV-NRG', version: 5 });
+  return json({ ok: true, name: 'EV-NRG', version: 6 });
 }
 
 function doPost(e) {
@@ -196,7 +196,7 @@ function getAll() {
   const num = function (v) { return Number(v) || 0; };
   return {
     ok: true,
-    cars: readSheet('Cars').map(function (c) { return { id: c.car_id, name: c.name, kmAtPurchase: num(c.km_at_purchase), image: c.image, licensePlate: String(c.license_plate || '') }; }),
+    cars: readSheet('Cars').map(function (c) { return { id: c.car_id, name: c.name, kmAtPurchase: num(c.km_at_purchase), image: c.image, licensePlate: String(c.license_plate || ''), vin: String(c.vin || '') }; }),
     tires: readSheet('TireStock').map(function (t) { return { id: String(t.id), car: t.car, name: String(t.name), type: t.type, startKm: num(t.start_km) }; }),
     fittings: readSheet('TireLog').map(function (f) {
       return { id: String(f.id), tire: String(f.tire), pos: String(f.position), dateOn: String(f.date_on || ''), kmOn: num(f.km_on), dateOff: String(f.date_off || ''), kmOff: f.km_off === '' ? null : num(f.km_off) };
@@ -302,6 +302,11 @@ const HANDLERS = {
     if (r.licensePlate !== undefined) {
       if (typeof r.licensePlate !== 'string' || r.licensePlate.length > 12) fail('Ugyldig nummerplade');
       values.license_plate = r.licensePlate.trim().toUpperCase();
+    }
+    if (r.vin !== undefined) {
+      const vin = String(r.vin).replace(/\s/g, '').toUpperCase();
+      if (vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) fail('Stelnummer skal være 17 tegn (bogstaver og tal, ikke I, O og Q)');
+      values.vin = vin;
     }
     setFields(findRow('Cars', r.id), values);
   },

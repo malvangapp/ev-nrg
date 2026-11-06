@@ -284,6 +284,7 @@
         <div class="row"><span class="k">Ude</span><span class="v">${f1.format(away.kwh)} kWh<small>${f2.format(away.price)} kr.</small></span></div>
       </div>
       <div class="card">
+        <button class="row" data-vin><span class="k">Stelnummer (VIN)</span><span class="v vin">${car.vin ? esc(car.vin) : 'Tilføj'} ›</span></button>
         <button class="row" data-purchase><span class="k">Km ved køb</span><span class="v">${f0.format(car.kmAtPurchase)} km ›</span></button>
         <div class="row"><span class="k">Seneste km-stand</span><span class="v">${s.latest ? `${f0.format(s.latest.km)} km<small>${esc(fmtDate(s.latest.date))}</small>` : '–'}</span></div>
         <div class="row"><span class="k">Kørt km</span><span class="v">${s.kmDriven == null ? '–' : `${f0.format(s.kmDriven)} km`}</span></div>
@@ -341,6 +342,7 @@
     if (page) state.detailCar = page.dataset.car;
     if (e.target.closest('[data-purchase]')) return openPurchaseSheet();
     if (e.target.closest('[data-plate]')) return openPlateSheet();
+    if (e.target.closest('[data-vin]')) return openVinSheet();
     if (e.target.closest('[data-tires-toggle]')) { state.tiresOpen = !state.tiresOpen; state.stockOpen = false; return renderDetail(); }
     if (e.target.closest('[data-stock-toggle]')) { state.stockOpen = !state.stockOpen; return renderDetail(); }
     if (e.target.closest('[data-tire-init]')) return openTireInit();
@@ -363,6 +365,23 @@
     $('form', sheet).onsubmit = async (e) => {
       e.preventDefault();
       if (await mutate('updateCar', { id: car.id, licensePlate: $('#s-plate', sheet).value })) closeSheet();
+    };
+  }
+
+  function openVinSheet() {
+    const car = state.data.cars.find((c) => c.id === state.detailCar);
+    const sheet = openSheet(`<h2>Stelnummer (VIN)</h2>
+      <form class="form">
+        <label>Stelnummer<input id="s-vin" type="text" maxlength="20" autocapitalize="characters" autocomplete="off" spellcheck="false" value="${esc(car.vin || '')}" placeholder="17 tegn"></label>
+        <p class="hint">17 tegn: bogstaver og tal, uden I, O og Q. Lad feltet stå tomt for at fjerne det.</p>
+        <p class="error" id="s-error"></p>
+        <button class="btn primary" type="submit">Gem</button>
+      </form>`);
+    $('form', sheet).onsubmit = async (e) => {
+      e.preventDefault();
+      const vin = $('#s-vin', sheet).value.replace(/\s/g, '').toUpperCase();
+      if (vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) { $('#s-error', sheet).textContent = 'Stelnummer skal være 17 tegn (ikke I, O og Q)'; return; }
+      if (await mutate('updateCar', { id: car.id, vin })) closeSheet();
     };
   }
 

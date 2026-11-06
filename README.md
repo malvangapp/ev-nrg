@@ -32,7 +32,8 @@ Fanen `Charges` har kolonnen `non_home` (afkrydsning). Marker rækker hvor bilen
 Efter en opdatering af `Code.gs`: kør `setup` igen og udgiv en **ny version** under Deploy → Manage deployments.
 
 ## Nummerplade og dæk
-- `Cars` har kolonnen `license_plate` (rettes ved at trykke på pladen på Bildetaljer).
+- `Cars` har kolonnerne `license_plate` (rettes ved at trykke på pladen på Bildetaljer) og `vin` (stelnummer, 17 tegn,
+  rettes ved at trykke på "Stelnummer (VIN)" over "Km ved køb").
 - Dæk registreres enkeltvis og hører til én bil. To faner (oprettes automatisk):
   - `TireStock`: dækregisteret (navn, type sommer/vinter/helår, `start_km` = km dækket allerede havde).
   - `TireLog`: hver montering (dæk, position FL/FR/RL/RR, dato og km på og af). Tom `km_off` = sidder stadig på bilen.

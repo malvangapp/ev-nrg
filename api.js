@@ -46,8 +46,8 @@ const Api = (() => {
       }
       demoData = {
         cars: [
-          { id: 'elroq', name: 'Skoda Elroq', kmAtPurchase: 1200, image: 'assets/cars/elroq.png', licensePlate: 'AB 12 345' },
-          { id: 'id3', name: 'VW ID.3', kmAtPurchase: 15000, image: 'assets/cars/id3.png', licensePlate: '' },
+          { id: 'elroq', name: 'Skoda Elroq', kmAtPurchase: 1200, image: 'assets/cars/elroq.png', licensePlate: 'AB 12 345', vin: '' },
+          { id: 'id3', name: 'VW ID.3', kmAtPurchase: 15000, image: 'assets/cars/id3.png', licensePlate: '', vin: '' },
         ],
         // Elroq: four summer tires mounted, four winter tires in stock that already ran 2.300 km.
         tires: [1, 2, 3, 4].map((n) => ({ id: 's' + n, car: 'elroq', name: 'Sommer ' + n, type: 'summer', startKm: 0 }))
@@ -77,6 +77,7 @@ const Api = (() => {
           ...c,
           ...(p.kmAtPurchase !== undefined && { kmAtPurchase: p.kmAtPurchase }),
           ...(p.licensePlate !== undefined && { licensePlate: p.licensePlate.trim().toUpperCase() }),
+          ...(p.vin !== undefined && { vin: p.vin.replace(/\s/g, '').toUpperCase() }),
         }));
         break;
       case 'addTire': for (let i = 1; i <= (p.count || 1); i++) d.tires.push({ id: uid(), car: p.car, name: p.count > 1 ? `${p.name} ${i}` : p.name, type: p.type, startKm: p.startKm || 0 }); break;
