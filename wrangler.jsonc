@@ -14,8 +14,7 @@
     {
       "binding": "DB",
       "database_name": "ev-nrg",
-      // Replace with the id printed by: npx wrangler d1 create ev-nrg
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "c05d3274-9d30-4e19-bbf9-36ad2bddaa67"
     }
   ]
 }
