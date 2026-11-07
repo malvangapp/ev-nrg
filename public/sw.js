@@ -1,4 +1,4 @@
-const CACHE = 'evnrg-v2';
+const CACHE = 'evnrg-v3';
 const SHELL = ['./', 'index.html', 'styles.css', 'config.js', 'calc.js', 'planner.js', 'api.js', 'app.js', 'manifest.webmanifest',
   'assets/cars/elroq.png', 'assets/cars/id3.png', 'assets/icons/icon-192.png', 'assets/icons/apple-touch-icon.png'];
 

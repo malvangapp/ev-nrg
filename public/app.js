@@ -693,7 +693,7 @@
       <p class="hint pad">I appen nu: ${c.charges} ladninger · ${c.odometer} km-stande · ${c.tires} dæk · ${c.fittings} monteringer</p>
       <div class="sec-head"><h2>Konto</h2></div>
       <div class="card"><button class="row" data-logout><span class="k">Log ud</span><span class="v">›</span></button></div>
-      <p class="credit">Backend: ${Api.demo ? 'Demo (der gemmes ikke noget)' : 'Google Sheets'}</p>`;
+      <p class="credit">Backend: ${Api.demo ? 'Demo (der gemmes ikke noget)' : 'Cloudflare'}</p>`;
   }
 
   // Share sheet on iPhone (save to Files); plain download elsewhere.
@@ -982,7 +982,7 @@
       const fresh = await Api.call('getAll');
       setData(fresh);
       if (!Api.demo && (!('fittings' in fresh) || (fresh.charges.length && !('nonHome' in fresh.charges[0])))) {
-        toast('Backend er ikke opdateret: udgiv en ny version i Apps Script');
+        toast('Backend er ikke opdateret');
       }
     } catch (e) {
       if (e.code === 'AUTH') return logout();

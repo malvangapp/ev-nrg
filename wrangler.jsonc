@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ev-nrg",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-10-01",
+  "observability": { "enabled": true },
+  // public/ is served as static files; only /api runs the Worker.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ev-nrg",
+      // Replace with the id printed by: npx wrangler d1 create ev-nrg
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "ev-nrg",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init:local": "wrangler d1 execute ev-nrg --local --file=schema.sql",
+    "db:init:remote": "wrangler d1 execute ev-nrg --remote --file=schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.40.0"
+  }
+}
