@@ -57,7 +57,7 @@ function setup() {
 }
 
 function doGet() {
-  return json({ ok: true, name: 'EV-NRG', version: 6 });
+  return json({ ok: true, name: 'EV-NRG', version: 7 });
 }
 
 function doPost(e) {
@@ -400,7 +400,94 @@ const HANDLERS = {
     const t = findRow('TireLog', r.id);
     t.sheet.deleteRow(t.row);
   },
+  // Load an export file. mode 'merge' adds records whose id is not there yet; 'replace' swaps all data
+  // (cars keep their name and image; km at purchase, plate and VIN are taken from the file).
+  importAll: function (r) {
+    const d = r.data || {};
+    const replace = r.mode === 'replace';
+    ['cars', 'charges', 'odometer', 'tires', 'fittings'].forEach(function (k) {
+      if (d[k] !== undefined && !Array.isArray(d[k])) fail('Ugyldig fil');
+      if ((d[k] || []).length > 20000) fail('Filen er for stor');
+    });
+    const carIds = readSheet('Cars').map(function (c) { return c.car_id; });
+    const have = function (name) { const s = {}; readSheet(name).forEach(function (x) { s[String(x.id)] = true; }); return s; };
+    const existing = {
+      Charges: replace ? {} : have('Charges'), Odometer: replace ? {} : have('Odometer'),
+      TireStock: replace ? {} : have('TireStock'), TireLog: replace ? {} : have('TireLog'),
+    };
+    const now = new Date().toISOString();
+    const keep = function (name, list, build) { // validate + build records, skipping ids already present
+      const out = [];
+      (list || []).forEach(function (item) {
+        const id = item.id ? String(item.id) : Utilities.getUuid();
+        if (existing[name][id]) return;
+        existing[name][id] = true;
+        out.push(build(item, id));
+      });
+      return out;
+    };
+    const known = function (car) { if (carIds.indexOf(car) < 0) fail('Ukendt bil i filen: ' + car); };
+
+    const charges = keep('Charges', d.charges, function (c, id) {
+      known(c.car); checkDate(c.date); checkNumber(c.kwh, 'kWh', 0.001); checkNumber(c.price, 'pris', 0);
+      return { id: id, date: c.date, car: c.car, kwh: c.kwh, price_dkk: c.price, created: now, updated: now, non_home: c.nonHome === true };
+    });
+    const odometer = keep('Odometer', d.odometer, function (o, id) {
+      known(o.car); checkDate(o.date); checkNumber(o.km, 'km-stand', 0);
+      return { id: id, date: o.date, car: o.car, km: o.km };
+    });
+    const tires = keep('TireStock', d.tires, function (t, id) {
+      known(t.car);
+      const v = tireValues({ name: t.name, type: t.type, startKm: t.startKm });
+      return { id: id, car: t.car, name: v.name, type: v.type, start_km: v.start_km };
+    });
+    const tireIds = {};
+    tires.forEach(function (t) { tireIds[t.id] = true; });
+    if (!replace) readSheet('TireStock').forEach(function (t) { tireIds[String(t.id)] = true; });
+    const fittings = keep('TireLog', d.fittings, function (f, id) {
+      if (!tireIds[String(f.tire)]) fail('Montering peger på et dæk der ikke findes');
+      if (TIRE_POSITIONS.indexOf(f.pos) < 0) fail('Ugyldig dækposition i filen');
+      checkNumber(f.kmOn, 'km-stand', 0);
+      if (f.dateOn) checkDate(f.dateOn);
+      const open = f.kmOff === null || f.kmOff === undefined;
+      if (!open) { checkNumber(f.kmOff, 'km-stand', 0); checkDate(f.dateOff); }
+      return { id: id, tire: String(f.tire), position: f.pos, date_on: f.dateOn || '', km_on: f.kmOn, date_off: open ? '' : f.dateOff, km_off: open ? '' : f.kmOff };
+    });
+
+    if (replace) {
+      (d.cars || []).forEach(function (c) {
+        if (carIds.indexOf(c.id) < 0) return;
+        const values = {};
+        if (typeof c.kmAtPurchase === 'number' && c.kmAtPurchase >= 0) values.km_at_purchase = c.kmAtPurchase;
+        if (typeof c.licensePlate === 'string') values.license_plate = c.licensePlate.slice(0, 12);
+        if (typeof c.vin === 'string' && /^[A-HJ-NPR-Z0-9]{17}$|^$/.test(c.vin)) values.vin = c.vin;
+        setFields(findRow('Cars', c.id), values);
+      });
+    }
+    writeRecords('Charges', charges, replace);
+    writeRecords('Odometer', odometer, replace);
+    writeRecords('TireStock', tires, replace);
+    writeRecords('TireLog', fittings, replace);
+  },
 };
+
+// Write records (objects keyed by schema field) below the headers; replace first clears the old rows.
+function writeRecords(name, records, replace) {
+  const sheet = sheetOf(name);
+  const map = columnMap(sheet, name);
+  const width = Math.max(sheet.getLastColumn(), 1);
+  if (replace && sheet.getLastRow() > 1) sheet.getRange(2, 1, sheet.getLastRow() - 1, width).clearContent();
+  if (!records.length) return;
+  const start = replace ? 2 : sheet.getLastRow() + 1;
+  const rows = records.map(function (rec) {
+    const row = [];
+    for (let i = 0; i < width; i++) row.push('');
+    Object.keys(rec).forEach(function (f) { if (map[f] !== undefined) row[map[f]] = rec[f]; });
+    return row;
+  });
+  (TEXT_COLUMNS[name] || []).forEach(function (col) { sheet.getRange(start, map[col] + 1, rows.length, 1).setNumberFormat('@'); });
+  sheet.getRange(start, 1, rows.length, width).setValues(rows);
+}
 
 function tireValues(r) {
   const name = String(r.name || '').trim();

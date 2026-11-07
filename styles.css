@@ -71,7 +71,7 @@ button.box { cursor: pointer; }
 /* ---- nav ---- */
 .nav {
   position: fixed; left: 0; right: 0; bottom: 0; height: calc(var(--nav-h) + var(--safe-b)); padding-bottom: var(--safe-b);
-  display: grid; grid-template-columns: repeat(4, 1fr); background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px);
+  display: grid; grid-template-columns: repeat(5, 1fr); background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px);
   border-top: 1px solid var(--border); z-index: 5;
 }
 .nav button { background: none; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; color: var(--muted); cursor: pointer; }
@@ -124,6 +124,9 @@ input.toggle:checked::after { transform: translateX(20px); }
 .row.actions { justify-content: flex-start; gap: 24px; }
 .row .k small { display: block; color: var(--muted); font-size: 13px; font-weight: 400; margin-top: 1px; }
 .row .v.vin { font-size: 13px; letter-spacing: 0.5px; word-break: break-all; }
+.hint.pad { padding: 0 4px; margin-bottom: 4px; }
+.import-sum { margin: 0 0 14px; }
+.import-sum .row { padding: 9px 0; font-size: 15px; }
 .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .chip { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px 8px; font-size: 15px; color: var(--muted); cursor: pointer; }
 .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }

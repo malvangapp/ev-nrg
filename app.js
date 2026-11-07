@@ -99,7 +99,7 @@
   // ---------- navigation ----------
   function show(view) {
     state.view = view;
-    for (const v of ['overview', 'detail', 'data', 'plan', 'form']) $(`#view-${v}`).classList.toggle('hidden', v !== view);
+    for (const v of ['overview', 'detail', 'data', 'plan', 'settings', 'form']) $(`#view-${v}`).classList.toggle('hidden', v !== view);
     const navView = view === 'form' ? state.returnView : view;
     document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b.dataset.view === navView));
     if (view === 'overview') {
@@ -672,6 +672,122 @@
     renderDetail();
     renderData();
     renderPlan();
+    renderSettings();
+  }
+
+  // ---------- settings: export / import ----------
+  const EXPORT_KEYS = ['cars', 'charges', 'odometer', 'tires', 'fittings'];
+  const countsOf = (d) => ({ charges: (d.charges || []).length, odometer: (d.odometer || []).length, tires: (d.tires || []).length, fittings: (d.fittings || []).length });
+
+  function renderSettings() {
+    if (!state.data) return;
+    const c = countsOf(state.data);
+    $('#settings').innerHTML = `
+      <div class="head"><h1>Indstillinger</h1></div>
+      <div class="sec-head"><h2>Data</h2></div>
+      <div class="card">
+        <button class="row" data-export="json"><span class="k">Eksportér alle data<small>Komplet sikkerhedskopi (JSON) som kan importeres igen</small></span><span class="v">›</span></button>
+        <button class="row" data-export="csv"><span class="k">Eksportér ladninger<small>CSV-fil til Excel</small></span><span class="v">›</span></button>
+        <button class="row" data-import><span class="k">Importér data<small>Fra en JSON-fil eksporteret her</small></span><span class="v">›</span></button>
+      </div>
+      <p class="hint pad">I appen nu: ${c.charges} ladninger · ${c.odometer} km-stande · ${c.tires} dæk · ${c.fittings} monteringer</p>
+      <div class="sec-head"><h2>Konto</h2></div>
+      <div class="card"><button class="row" data-logout><span class="k">Log ud</span><span class="v">›</span></button></div>
+      <p class="credit">Backend: ${Api.demo ? 'Demo (der gemmes ikke noget)' : 'Google Sheets'}</p>`;
+  }
+
+  // Share sheet on iPhone (save to Files); plain download elsewhere.
+  async function saveFile(name, type, text) {
+    const file = new File([text], name, { type });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  function exportJson() {
+    const payload = { app: 'ev-nrg', format: 1, exportedAt: new Date().toISOString() };
+    for (const k of EXPORT_KEYS) payload[k] = state.data[k] || [];
+    return saveFile(`ev-nrg-${today()}.json`, 'application/json', JSON.stringify(payload, null, 2));
+  }
+
+  function exportCsv() {
+    const num = (n, d = 2) => n.toFixed(d).replace('.', ',');
+    const cell = (v) => (/[;"\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+    const rows = [['Dato', 'Bil', 'kWh', 'Pris (kr.)', 'kr./kWh', 'Ude']].concat(
+      state.data.charges.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)).map((c) => [
+        c.date, carName(c.car), num(c.kwh), num(c.price), num(c.kwh > 0 ? c.price / c.kwh : 0), c.nonHome ? 'Ja' : 'Nej',
+      ]),
+    );
+    return saveFile(`ev-nrg-ladninger-${today()}.csv`, 'text/csv', '﻿' + rows.map((r) => r.map(cell).join(';')).join('\r\n'));
+  }
+
+  $('#settings').addEventListener('click', (e) => {
+    const ex = e.target.closest('[data-export]');
+    if (ex) return ex.dataset.export === 'json' ? exportJson() : exportCsv();
+    if (e.target.closest('[data-import]')) { $('#import-file').value = ''; return $('#import-file').click(); }
+    if (e.target.closest('[data-logout]') && confirm('Log ud af appen?')) logout();
+  });
+
+  $('#import-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    let data;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      return toast('Filen kunne ikke læses som JSON');
+    }
+    const looksRight = data && typeof data === 'object' && EXPORT_KEYS.some((k) => Array.isArray(data[k]));
+    if (!looksRight || (data.app && data.app !== 'ev-nrg')) return toast('Det er ikke en EV-NRG-eksportfil');
+    openImportSheet(data, file.name);
+  });
+
+  function openImportSheet(data, fileName) {
+    const c = countsOf(data);
+    const now = countsOf(state.data);
+    let mode = 'merge';
+    const sheet = openSheet(`<h2>Importér data</h2>
+      <p class="hint">${esc(fileName)}${data.exportedAt ? ` · eksporteret ${esc(fmtDate(data.exportedAt.slice(0, 10)))}` : ''}</p>
+      <div class="card import-sum">
+        <div class="row"><span class="k"></span><span class="v">I filen / i appen</span></div>
+        <div class="row"><span class="k">Ladninger</span><span class="v">${c.charges} / ${now.charges}</span></div>
+        <div class="row"><span class="k">Km-stande</span><span class="v">${c.odometer} / ${now.odometer}</span></div>
+        <div class="row"><span class="k">Dæk</span><span class="v">${c.tires} / ${now.tires}</span></div>
+        <div class="row"><span class="k">Monteringer</span><span class="v">${c.fittings} / ${now.fittings}</span></div>
+      </div>
+      <div class="chips"><button type="button" class="chip on" data-mode="merge">Tilføj det der mangler</button><button type="button" class="chip" data-mode="replace">Erstat alt</button></div>
+      <p class="hint" id="mode-hint" style="margin:10px 0 14px"></p>
+      <button class="btn primary" id="do-import" type="button">Importér</button>`);
+    const hints = {
+      merge: 'Poster der allerede findes (samme id) springes over. Intet slettes.',
+      replace: 'Alle nuværende ladninger, km-stande og dæk slettes og erstattes af filens. Brug det til at genskabe en sikkerhedskopi.',
+    };
+    const drawMode = () => {
+      sheet.querySelectorAll('[data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
+      $('#mode-hint', sheet).textContent = hints[mode];
+    };
+    drawMode();
+    sheet.onclick = (e) => {
+      const b = e.target.closest('[data-mode]');
+      if (b) { mode = b.dataset.mode; drawMode(); }
+    };
+    $('#do-import', sheet).onclick = async () => {
+      if (mode === 'replace' && !confirm(`Erstat alle data? ${now.charges} ladninger i appen slettes og erstattes af ${c.charges} fra filen.`)) return;
+      const payload = { mode, data: {} };
+      for (const k of EXPORT_KEYS) if (Array.isArray(data[k])) payload.data[k] = data[k];
+      if (await mutate('importAll', payload)) {
+        closeSheet();
+        toast(mode === 'replace' ? 'Data erstattet' : 'Data importeret');
+      }
+    };
   }
 
   // ---------- cheapest charging ----------

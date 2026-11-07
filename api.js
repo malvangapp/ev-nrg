@@ -80,6 +80,18 @@ const Api = (() => {
           ...(p.vin !== undefined && { vin: p.vin.replace(/\s/g, '').toUpperCase() }),
         }));
         break;
+      case 'importAll': {
+        const merge = (key, list) => {
+          const have = new Set(d[key].map((x) => x.id));
+          (list || []).forEach((x) => { if (!have.has(x.id)) { have.add(x.id); d[key].push({ ...x, id: x.id || uid() }); } });
+        };
+        if (p.mode === 'replace') {
+          ['charges', 'odometer', 'tires', 'fittings'].forEach((k) => { d[k] = []; });
+          (p.data.cars || []).forEach((c) => { d.cars = d.cars.map((x) => (x.id === c.id ? { ...x, kmAtPurchase: c.kmAtPurchase, licensePlate: c.licensePlate || '', vin: c.vin || '' } : x)); });
+        }
+        ['charges', 'odometer', 'tires', 'fittings'].forEach((k) => merge(k, p.data[k]));
+        break;
+      }
       case 'addTire': for (let i = 1; i <= (p.count || 1); i++) d.tires.push({ id: uid(), car: p.car, name: p.count > 1 ? `${p.name} ${i}` : p.name, type: p.type, startKm: p.startKm || 0 }); break;
       case 'updateTire': d.tires = d.tires.map((t) => (t.id === p.id ? { ...t, name: p.name, type: p.type, startKm: p.startKm || 0 } : t)); break;
       case 'deleteTire': d.fittings = d.fittings.filter((f) => f.tire !== p.id); del('tires'); break;

@@ -31,13 +31,35 @@ Fanen `Charges` har kolonnen `non_home` (afkrydsning). Marker rækker hvor bilen
 (eller slå "Ladet ude" til i formularen). På Bildetaljer kan du slå "Inkl. ladning ude" til/fra.
 Efter en opdatering af `Code.gs`: kør `setup` igen og udgiv en **ny version** under Deploy → Manage deployments.
 
+## Eksport og import (Indstillinger)
+Fanen **Indstillinger** har:
+- **Eksportér alle data**: en komplet JSON-fil (`ev-nrg-<dato>.json`). På iPhone åbnes Del-menuen, så den kan gemmes i Filer.
+- **Eksportér ladninger**: en CSV-fil til Excel (semikolon, decimalkomma).
+- **Importér data**: vælg en JSON-fil. Vælg **Tilføj det der mangler** (springer poster med samme id over, sletter intet)
+  eller **Erstat alt** (sletter nuværende ladninger, km-stande og dæk og indlæser filens).
+- **Log ud**.
+
+Filformatet er uafhængigt af Google Sheets, så den samme fil kan indlæses i en ny backend (fx Cloudflare):
+```json
+{
+  "app": "ev-nrg", "format": 1, "exportedAt": "2026-11-07T10:00:00.000Z",
+  "cars":     [{ "id": "elroq", "name": "Skoda Elroq", "kmAtPurchase": 1200, "image": "assets/cars/elroq.png", "licensePlate": "AB12345", "vin": "" }],
+  "charges":  [{ "id": "…", "date": "2026-10-01", "car": "elroq", "kwh": 40, "price": 100, "nonHome": false }],
+  "odometer": [{ "id": "…", "date": "2026-10-05", "car": "elroq", "km": 5000 }],
+  "tires":    [{ "id": "…", "car": "elroq", "name": "Sommer 1", "type": "summer", "startKm": 0 }],
+  "fittings": [{ "id": "…", "tire": "<tire id>", "pos": "FL", "dateOn": "", "kmOn": 1200, "dateOff": "", "kmOff": null }]
+}
+```
+`type` er `summer`, `winter` eller `all`; `pos` er `FL`, `FR`, `RL` eller `RR`; `kmOff: null` betyder at dækket sidder på bilen.
+Import kræver at Code.gs er udgivet i en version der kan `importAll`.
+
 ## Nummerplade og dæk
 - `Cars` har kolonnerne `license_plate` (rettes ved at trykke på pladen på Bildetaljer) og `vin` (stelnummer, 17 tegn,
   rettes ved at trykke på "Stelnummer (VIN)" over "Km ved køb").
 - Dæk registreres enkeltvis og hører til én bil. To faner (oprettes automatisk):
   - `TireStock`: dækregisteret (navn, type sommer/vinter/helår, `start_km` = km dækket allerede havde).
   - `TireLog`: hver montering (dæk, position FL/FR/RL/RR, dato og km på og af). Tom `km_off` = sidder stadig på bilen.
-- Et dæks km = `start_km` + alle moneringer; en montering der stadig sidder på tæller op til bilens seneste km-stand.
+- Et dæks km = `start_km` + alle monteringer; en montering der stadig sidder på tæller op til bilens seneste km-stand.
   Når du tilføjer en km-stand, opdateres dækkenes km altså af sig selv, og et dæk fortsætter hvor det slap når det monteres igen.
 - På Bildetaljer: "Skift dæk" vælger pladser (forrest, bagerst eller enkelte) og hvilke dæk fra lageret der skal på. "Nyt dæk" tilføjer til lageret.
   Første gang bruges "Registrér nuværende dæk", som regner de fire dæk på bilen med fra købet.
